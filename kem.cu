@@ -3050,88 +3050,88 @@ void crypto_decaps(unsigned char *k, const unsigned char *ct, const unsigned cha
 //     // b.stop();
 
 //sk到m的赋值
-    for(int j=0;j<BATCH_SIZE;j++){
+    for(int j=0;j<batch_size;j++){
         for(int i = 0; i < FPTRU_PREFIXHASHBYTES; i++){
             bytes[j * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) + i] = sk[j * FPTRU_KEM_SECRETKEYBYTES + i + FPTRU_PKE_SECRETKEYBYTES];//DEBUG:这里传输的是公钥
         }
         unpack_ct(&polys[j], &ct[j*FPTRU_KEM_CIPHERTEXTBYTES]);//写成gpu的版本
 
 
-        unpack_sk(&polys[BATCH_SIZE + j], &sk[j*FPTRU_KEM_SECRETKEYBYTES]);//写成gpu的版本
+        unpack_sk(&polys[batch_size + j], &sk[j*FPTRU_KEM_SECRETKEYBYTES]);//写成gpu的版本
 
 
-        unpack_pk(&polys[2 * BATCH_SIZE + j], &sk[j*FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES]);
+        unpack_pk(&polys[2 * batch_size + j], &sk[j*FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES]);
 
         for(int i=0;i<FPTRU_PREFIXHASHBYTES;i++){
-            bytes[(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) *BATCH_SIZE +  j * (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) + i] = sk[j * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + i];
+            bytes[(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) *batch_size +  j * (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) + i] = sk[j * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + i];
         }
         for(int i=0;i<FPTRU_SEEDBYTES;i++){
-             bytes[(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) *BATCH_SIZE +  j * (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) + FPTRU_PREFIXHASHBYTES + i] = sk[j * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES + i];
+             bytes[(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) *batch_size +  j * (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) + FPTRU_PREFIXHASHBYTES + i] = sk[j * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES + i];
         }
         for(int i=0;i<FPTRU_PKE_CIPHERTEXTBYTES;i++){
-            bytes[(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) *BATCH_SIZE +  j * (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) + FPTRU_PREFIXHASHBYTES + FPTRU_SEEDBYTES + i] = ct[j * FPTRU_KEM_CIPHERTEXTBYTES + i];
+            bytes[(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) *batch_size +  j * (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) + FPTRU_PREFIXHASHBYTES + FPTRU_SEEDBYTES + i] = ct[j * FPTRU_KEM_CIPHERTEXTBYTES + i];
         }
         
     }
 
-    HANDLE_ERROR(cudaMemcpyAsync(polys_d, polys, BATCH_SIZE * sizeof(poly) * 3, cudaMemcpyHostToDevice, stream));
-    HANDLE_ERROR(cudaMemcpyAsync(bytes_d, bytes, BATCH_SIZE * ( (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) + (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) ), cudaMemcpyHostToDevice, stream));
+    HANDLE_ERROR(cudaMemcpyAsync(polys_d, polys, batch_size * sizeof(poly) * 3, cudaMemcpyHostToDevice, stream));
+    HANDLE_ERROR(cudaMemcpyAsync(bytes_d, bytes, batch_size * ( (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) + (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) ), cudaMemcpyHostToDevice, stream));
 
 
 #if (FPTRU_N == 653)
-    poly_mul_653_batch_q2<<<BATCH_SIZE,168,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[BATCH_SIZE]);
+    poly_mul_653_batch_q2<<<batch_size,168,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[batch_size]);
 #elif(FPTRU_N == 761)
-    poly_mul_761_batch_q2<<<BATCH_SIZE,192,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[BATCH_SIZE]);
+    poly_mul_761_batch_q2<<<batch_size,192,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[batch_size]);
 #elif(FPTRU_N == 1277)
-    poly_mul_1277_batch_q2<<<BATCH_SIZE,320,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[BATCH_SIZE]);
+    poly_mul_1277_batch_q2<<<batch_size,320,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[batch_size]);
 #endif
 
 
-    poly_decode_batch<<<BATCH_SIZE,FPTRU_MSGBYTES,0,stream>>>(bytes_d + FPTRU_PREFIXHASHBYTES,&polys_d[0]);
+    poly_decode_batch<<<batch_size,FPTRU_MSGBYTES,0,stream>>>(bytes_d + FPTRU_PREFIXHASHBYTES,&polys_d[0]);
 
-    atpqc_cuda::fips202_ws::global::sha3<512><<<BATCH_SIZE,32,0,stream>>>(buf_d,FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2,bytes_d,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,BATCH_SIZE);//输出.输入，输入的长度 
+    atpqc_cuda::fips202_ws::global::sha3<512><<<batch_size,32,0,stream>>>(buf_d,FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2,bytes_d,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,batch_size);//输出.输入，输入的长度 
 
 
-    atpqc_cuda::fips202_ws::global::shake<256><<<BATCH_SIZE, 32, 0, stream>>>(buf_d + FPTRU_SHAREDKEYBYTES, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, FPTRU_COIN_BYTES / 2, buf_d + FPTRU_SHAREDKEYBYTES, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, 32, BATCH_SIZE);
+    atpqc_cuda::fips202_ws::global::shake<256><<<batch_size, 32, 0, stream>>>(buf_d + FPTRU_SHAREDKEYBYTES, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, FPTRU_COIN_BYTES / 2, buf_d + FPTRU_SHAREDKEYBYTES, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, 32, batch_size);
 
 #if(FPTRU_BOUND == 7) //653
-    poly_sample_and_double_v2<<<BATCH_SIZE,FPTRU_N / 4 + 1, 0, stream>>>(r_sigma_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
+    poly_sample_and_double_v2<<<batch_size,FPTRU_N / 4 + 1, 0, stream>>>(r_sigma_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
 #elif(FPTRU_BOUND == 5) //761和1277
-    poly_sample_and_double_v2<<<BATCH_SIZE,FPTRU_N / 8 + 1, 0, stream>>>(r_sigma_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
+    poly_sample_and_double_v2<<<batch_size,FPTRU_N / 8 + 1, 0, stream>>>(r_sigma_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
 #endif
 
 
 #if (FPTRU_N == 653)
-    poly_mul_653_batch_q1_v3<<<BATCH_SIZE,168,0,stream>>>(r_sigma_d,&polys[2 * BATCH_SIZE],r_sigma_d);
+    poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(r_sigma_d,&polys[2 * batch_size],r_sigma_d);
 #elif(FPTRU_N == 761)
-    poly_mul_761_batch_q1<<<BATCH_SIZE,192,0,stream>>>(r_sigma_d,&polys[2 * BATCH_SIZE],r_sigma_d);
+    poly_mul_761_batch_q1<<<batch_size,192,0,stream>>>(r_sigma_d,&polys[2 * batch_size],r_sigma_d);
 #elif(FPTRU_N == 1277)
-    poly_mul_1277_batch_q1<<<BATCH_SIZE,320,0,stream>>>(r_sigma_d,&polys[2 * BATCH_SIZE],r_sigma_d);
+    poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(r_sigma_d,&polys[2 * batch_size],r_sigma_d);
 #endif
 
 
 #if (FPTRU_N == 653)
-    poly_fqcsubq_encode_compress_batch_pack_ct_653<<<BATCH_SIZE,FPTRU_N/8 + 1,0,stream>>>(ct2_d,r_sigma_d,bytes_d + FPTRU_PREFIXHASHBYTES,(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES));
+    poly_fqcsubq_encode_compress_batch_pack_ct_653<<<batch_size,FPTRU_N/8 + 1,0,stream>>>(ct2_d,r_sigma_d,bytes_d + FPTRU_PREFIXHASHBYTES,(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES));
 #elif (FPTRU_N == 761)
-    poly_fqcsubq_encode_compress_batch_pack_ct_761<<<BATCH_SIZE,FPTRU_N/8 + 1,0,stream>>>(ct2_d,r_sigma_d,bytes_d + FPTRU_PREFIXHASHBYTES,(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES));
+    poly_fqcsubq_encode_compress_batch_pack_ct_761<<<batch_size,FPTRU_N/8 + 1,0,stream>>>(ct2_d,r_sigma_d,bytes_d + FPTRU_PREFIXHASHBYTES,(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES));
 #elif (FPTRU_N == 1277)
-    poly_fqcsubq_encode_compress_batch_pack_ct_1277<<<BATCH_SIZE,FPTRU_N/8 + 1,0,stream>>>(ct2_d,r_sigma_d,bytes_d + FPTRU_PREFIXHASHBYTES,(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES));
+    poly_fqcsubq_encode_compress_batch_pack_ct_1277<<<batch_size,FPTRU_N/8 + 1,0,stream>>>(ct2_d,r_sigma_d,bytes_d + FPTRU_PREFIXHASHBYTES,(FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES));
  #endif
 
 
 
-    HANDLE_ERROR(cudaMemcpyAsync(ct2_h, ct2_d, FPTRU_PKE_CIPHERTEXTBYTES * BATCH_SIZE, cudaMemcpyDeviceToHost, stream));
+    HANDLE_ERROR(cudaMemcpyAsync(ct2_h, ct2_d, FPTRU_PKE_CIPHERTEXTBYTES * batch_size, cudaMemcpyDeviceToHost, stream));
 
-    atpqc_cuda::fips202_ws::global::sha3<512><<<BATCH_SIZE,32,0,stream>>>(buf2_d,FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2,bytes_d,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,BATCH_SIZE);//输出.输入，输入的长度
+    //atpqc_cuda::fips202_ws::global::sha3<512><<<batch_size,32,0,stream>>>(buf2_d,FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2,bytes_d,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES,batch_size);//输出.输入，输入的长度
     
 
-    HANDLE_ERROR(cudaMemcpyAsync(buf2_h, buf2_d, (FPTRU_SHAREDKEYBYTES * 2) * BATCH_SIZE, cudaMemcpyDeviceToHost, stream));
+    HANDLE_ERROR(cudaMemcpyAsync(buf2_h, buf2_d, (FPTRU_SHAREDKEYBYTES * 2) * batch_size, cudaMemcpyDeviceToHost, stream));
 
-    HANDLE_ERROR(cudaMemcpyAsync(buf_h, buf_d, (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2) * BATCH_SIZE, cudaMemcpyDeviceToHost, stream));
+    HANDLE_ERROR(cudaMemcpyAsync(buf_h, buf_d, (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2) * batch_size, cudaMemcpyDeviceToHost, stream));
 
     cudaDeviceSynchronize();
     
-    for(int j=0;j<BATCH_SIZE;j++){
+    for(int j=0;j<batch_size;j++){
         int16_t t = 0;
         int32_t fail;
         for (int i = 0; i < FPTRU_PKE_CIPHERTEXTBYTES; ++i){
