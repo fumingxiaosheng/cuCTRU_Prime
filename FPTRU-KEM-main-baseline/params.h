@@ -7,7 +7,7 @@
 
 #endif
 
-// #define USING_PK_ENCODE 1
+#define USING_PK_ENCODE 1
 
 #if (FPTRU_N == 653)
 #define FPTRU_Q 4621

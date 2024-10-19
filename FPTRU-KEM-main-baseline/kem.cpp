@@ -151,10 +151,10 @@ int crypto_kem_encaps(unsigned char *ct,
   //TODO:在不固定值的情况下，需要打开randombytes
   randombytes(buf, FPTRU_SEEDBYTES);
 
-  // for(int k=0;k<FPTRU_SEEDBYTES;k++){
-  //     //printf("0x%x,",buf_h[k]);
-  //     buf[k]=seed[k];
-  // }
+  for(int k=0;k<FPTRU_SEEDBYTES;k++){
+      //printf("0x%x,",buf_h[k]);
+      buf[k]=seed[k];
+  }
   shake256_1.start();
   crypto_hash_shake256(m + FPTRU_PREFIXHASHBYTES, FPTRU_MSGBYTES, buf, 32);
   shake256_1.stop();
