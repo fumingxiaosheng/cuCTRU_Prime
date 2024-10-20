@@ -68,8 +68,8 @@ batch_thread: $(SOURCE)
 
 
 clean:
-#	rm -r $(BLDDIR)/test653_v2
+	rm -r $(BLDDIR)/test653_v2
 	rm -r $(BLDDIR)/test1277
-#	rm -r $(BLDDIR)/test761
+	rm -r $(BLDDIR)/test761
 
 
