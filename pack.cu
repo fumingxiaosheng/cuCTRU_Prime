@@ -262,60 +262,62 @@ void pack_pk_simple(unsigned char *r, const poly *a)
     r[i*13+ 1] = (a->coeffs[i*8] >> 8) & 0x1F;
 }
 
-__device__ void pack_pk_simple_gpu(unsigned char *r, const poly *a){
+__device__ void pack_pk_simple_gpu(unsigned char *r, unsigned char *sk,const poly *a){
     int i = threadIdx.x;
 #if (FPTRU_N ==761)
     if(i == FPTRU_N/8){
-        r[i*13] = a->coeffs[i*8];
-        r[i*13+ 1] = (a->coeffs[i*8] >> 8) & 0x1F;
+        sk[i*13] = r[i*13] = a->coeffs[i*8];
+        sk[i*13+ 1] = r[i*13+ 1] = (a->coeffs[i*8] >> 8) & 0x1F;
+
+        
     }
     else{
-        r[i *13] = a->coeffs[i*8];
-        r[i *13+ 1] = (a->coeffs[i*8] >> 8)| ((int16_t)a->coeffs[i*8+1] << 5);
-        r[i *13+ 2] = a->coeffs[i*8+1] >> 3;
-        r[i *13+ 3] = (a->coeffs[i*8+1] >> 11 )| ((int16_t)a->coeffs[i*8+2] << 2);
-        r[i *13+ 4] = (a->coeffs[i*8+2] >> 6  )| ((int16_t)a->coeffs[i*8+3] << 7);
-        r[i *13+ 5] = a->coeffs[i*8+3] >> 1;
-        r[i *13+ 6] = (a->coeffs[i*8+3] >> 9  )| ((int16_t)a->coeffs[i*8+4] << 4);
-        r[i *13+ 7] = a->coeffs[i*8+4] >> 4;
-        r[i *13+ 8] = (a->coeffs[i*8+4] >> 12 )| ((int16_t)a->coeffs[i*8+5] << 1);
-        r[i *13+ 9] = (a->coeffs[i*8+5] >> 7  )| ((int16_t)a->coeffs[i*8+6] << 6);
-        r[i *13+ 10] = a->coeffs[i*8+6] >> 2;
-        r[i *13+ 11] = (a->coeffs[i*8+6] >> 10) | ((int16_t)a->coeffs[i*8+7] << 3);
-        r[i *13+ 12] = a->coeffs[i*8+7] >> 5;
+        sk[i *13] = r[i *13] = a->coeffs[i*8];
+        sk[i *13+ 1] = r[i *13+ 1] = (a->coeffs[i*8] >> 8)| ((int16_t)a->coeffs[i*8+1] << 5);
+        sk[i *13+ 2] = r[i *13+ 2] = a->coeffs[i*8+1] >> 3;
+        sk[i *13+ 3] = r[i *13+ 3] = (a->coeffs[i*8+1] >> 11 )| ((int16_t)a->coeffs[i*8+2] << 2);
+        sk[i *13+ 4] = r[i *13+ 4] = (a->coeffs[i*8+2] >> 6  )| ((int16_t)a->coeffs[i*8+3] << 7);
+        sk[i *13+ 5] = r[i *13+ 5] = a->coeffs[i*8+3] >> 1;
+        sk[i *13+ 6] = r[i *13+ 6] = (a->coeffs[i*8+3] >> 9  )| ((int16_t)a->coeffs[i*8+4] << 4);
+        sk[i *13+ 7] = r[i *13+ 7] = a->coeffs[i*8+4] >> 4;
+        sk[i *13+ 8] = r[i *13+ 8] = (a->coeffs[i*8+4] >> 12 )| ((int16_t)a->coeffs[i*8+5] << 1);
+        sk[i *13+ 9] = r[i *13+ 9] = (a->coeffs[i*8+5] >> 7  )| ((int16_t)a->coeffs[i*8+6] << 6);
+        sk[i *13+ 10] = r[i *13+ 10] = a->coeffs[i*8+6] >> 2;
+        sk[i *13+ 11] = r[i *13+ 11] = (a->coeffs[i*8+6] >> 10) | ((int16_t)a->coeffs[i*8+7] << 3);
+        sk[i *13+ 12] = r[i *13+ 12] = a->coeffs[i*8+7] >> 5;
     }
 #elif (FPTRU_N ==653 || FPTRU_N == 1277)
     if(i == FPTRU_N/8){
-        r[i *13] = a->coeffs[i*8];
-        r[i *13+ 1] = (a->coeffs[i*8] >> 8)| ((int16_t)a->coeffs[i*8+1] << 5);
-        r[i *13+ 2] = a->coeffs[i*8+1] >> 3;
-        r[i *13+ 3] = (a->coeffs[i*8+1] >> 11 )| ((int16_t)a->coeffs[i*8+2] << 2);
-        r[i *13+ 4] = (a->coeffs[i*8+2] >> 6  )| ((int16_t)a->coeffs[i*8+3] << 7);
-        r[i *13+ 5] = a->coeffs[i*8+3] >> 1;
-        r[i *13+ 6] = (a->coeffs[i*8+3] >> 9  )| ((int16_t)a->coeffs[i*8+4] << 4);
-        r[i *13+ 7] = a->coeffs[i*8+4] >> 4;
-        r[i *13+ 8] = (a->coeffs[i*8+4] >> 12 ) & 0x01;
+        sk[i *13] = r[i *13] = a->coeffs[i*8];
+        sk[i *13+ 1] = r[i *13+ 1] = (a->coeffs[i*8] >> 8)| ((int16_t)a->coeffs[i*8+1] << 5);
+        sk[i *13+ 2] = r[i *13+ 2] = a->coeffs[i*8+1] >> 3;
+        sk[i *13+ 3] = r[i *13+ 3] = (a->coeffs[i*8+1] >> 11 )| ((int16_t)a->coeffs[i*8+2] << 2);
+        sk[i *13+ 4] = r[i *13+ 4] = (a->coeffs[i*8+2] >> 6  )| ((int16_t)a->coeffs[i*8+3] << 7);
+        sk[i *13+ 5] = r[i *13+ 5] = a->coeffs[i*8+3] >> 1;
+        sk[i *13+ 6] = r[i *13+ 6] = (a->coeffs[i*8+3] >> 9  )| ((int16_t)a->coeffs[i*8+4] << 4);
+        sk[i *13+ 7] = r[i *13+ 7] = a->coeffs[i*8+4] >> 4;
+        sk[i *13+ 8] = r[i *13+ 8] = (a->coeffs[i*8+4] >> 12 ) & 0x01;
     }
     else{
-        r[i *13] = a->coeffs[i*8];
-        r[i *13+ 1] = (a->coeffs[i*8] >> 8)| ((int16_t)a->coeffs[i*8+1] << 5);
-        r[i *13+ 2] = a->coeffs[i*8+1] >> 3;
-        r[i *13+ 3] = (a->coeffs[i*8+1] >> 11 )| ((int16_t)a->coeffs[i*8+2] << 2);
-        r[i *13+ 4] = (a->coeffs[i*8+2] >> 6  )| ((int16_t)a->coeffs[i*8+3] << 7);
-        r[i *13+ 5] = a->coeffs[i*8+3] >> 1;
-        r[i *13+ 6] = (a->coeffs[i*8+3] >> 9  )| ((int16_t)a->coeffs[i*8+4] << 4);
-        r[i *13+ 7] = a->coeffs[i*8+4] >> 4;
-        r[i *13+ 8] = (a->coeffs[i*8+4] >> 12 )| ((int16_t)a->coeffs[i*8+5] << 1);
-        r[i *13+ 9] = (a->coeffs[i*8+5] >> 7  )| ((int16_t)a->coeffs[i*8+6] << 6);
-        r[i *13+ 10] = a->coeffs[i*8+6] >> 2;
-        r[i *13+ 11] = (a->coeffs[i*8+6] >> 10) | ((int16_t)a->coeffs[i*8+7] << 3);
-        r[i *13+ 12] = a->coeffs[i*8+7] >> 5;
+        sk[i *13] = r[i *13] = a->coeffs[i*8];
+        sk[i *13+ 1] = r[i *13+ 1] = (a->coeffs[i*8] >> 8)| ((int16_t)a->coeffs[i*8+1] << 5);
+        sk[i *13+ 2] = r[i *13+ 2] = a->coeffs[i*8+1] >> 3;
+        sk[i *13+ 3] = r[i *13+ 3] = (a->coeffs[i*8+1] >> 11 )| ((int16_t)a->coeffs[i*8+2] << 2);
+        sk[i *13+ 4] = r[i *13+ 4] = (a->coeffs[i*8+2] >> 6  )| ((int16_t)a->coeffs[i*8+3] << 7);
+        sk[i *13+ 5] = r[i *13+ 5] = a->coeffs[i*8+3] >> 1;
+        sk[i *13+ 6] = r[i *13+ 6] = (a->coeffs[i*8+3] >> 9  )| ((int16_t)a->coeffs[i*8+4] << 4);
+        sk[i *13+ 7] = r[i *13+ 7] = a->coeffs[i*8+4] >> 4;
+        sk[i *13+ 8] = r[i *13+ 8] = (a->coeffs[i*8+4] >> 12 )| ((int16_t)a->coeffs[i*8+5] << 1);
+        sk[i *13+ 9] = r[i *13+ 9] = (a->coeffs[i*8+5] >> 7  )| ((int16_t)a->coeffs[i*8+6] << 6);
+        sk[i *13+ 10] = r[i *13+ 10] = a->coeffs[i*8+6] >> 2;
+        sk[i *13+ 11] = r[i *13+ 11] = (a->coeffs[i*8+6] >> 10) | ((int16_t)a->coeffs[i*8+7] << 3);
+        sk[i *13+ 12] = r[i *13+ 12] = a->coeffs[i*8+7] >> 5;
     }
 
 #endif
 }
-__global__ void pack_pk_simple_batch(unsigned char *r, const poly *a){
-    pack_pk_simple_gpu(&r[FPTRU_KEM_PUBLICKEYBYTES * blockIdx.x], &a[blockIdx.x]);
+__global__ void pack_pk_simple_batch(unsigned char *r_pk,unsigned char *r_sk, const poly *a){
+    pack_pk_simple_gpu(&r_pk[FPTRU_KEM_PUBLICKEYBYTES * blockIdx.x],&r_sk[blockIdx.x * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES] ,&a[blockIdx.x]);
 }
 
 
@@ -520,9 +522,9 @@ void pack_sk(unsigned char *r,poly *a)
 处理流程:对数据进行分块处理,然后再调用pack_sk_v2
 
 线程组织形式:<<<BATCH_SIZE,FPTRU_N/8 + 1>>>*/
-__global__ void pack_sk_batch_v2(unsigned char *array_r, poly *array_a){
+__global__ void pack_sk_batch_v2(unsigned char *array_r, poly *array_a,int interval){
 
-    pack_sk_v2(&array_r[FPTRU_PKE_SECRETKEYBYTES * (blockIdx.x)], &(array_a[blockIdx.x]));
+    pack_sk_v2(&array_r[interval * (blockIdx.x)], &(array_a[blockIdx.x]));
 }
 
 /*2024-4-29:
@@ -655,7 +657,70 @@ void unpack_sk(poly *r, const unsigned char *a)
     r->coeffs[8 * i + 0] = FPTRU_BOUND - r->coeffs[8 * i + 0];
 #endif
 }
+__device__ void unpack_sk_gpu(poly *r, const unsigned char *a){
+    unsigned int i = threadIdx.x;
+#if ((FPTRU_N == 653) || (FPTRU_N == 1277))
+    if(i == FPTRU_N/8){
+        r->coeffs[8 * i + 0] = (a[4 * i + 0] >> 0) & 15;
+        r->coeffs[8 * i + 1] = (a[4 * i + 0] >> 4) & 15;
+        r->coeffs[8 * i + 2] = (a[4 * i + 1] >> 0) & 15;
+        r->coeffs[8 * i + 3] = (a[4 * i + 1] >> 4) & 15;
+        r->coeffs[8 * i + 4] = (a[4 * i + 2] >> 0) & 15;
+        r->coeffs[8 * i + 0] = FPTRU_BOUND - r->coeffs[8 * i + 0];
+        r->coeffs[8 * i + 1] = FPTRU_BOUND - r->coeffs[8 * i + 1];
+        r->coeffs[8 * i + 2] = FPTRU_BOUND - r->coeffs[8 * i + 2];
+        r->coeffs[8 * i + 3] = FPTRU_BOUND - r->coeffs[8 * i + 3];
+        r->coeffs[8 * i + 4] = FPTRU_BOUND - r->coeffs[8 * i + 4];
+    }
+    else{
+        r->coeffs[8 * i + 0] = (a[4 * i + 0] >> 0) & 15;
+        r->coeffs[8 * i + 1] = (a[4 * i + 0] >> 4) & 15;
+        r->coeffs[8 * i + 2] = (a[4 * i + 1] >> 0) & 15;
+        r->coeffs[8 * i + 3] = (a[4 * i + 1] >> 4) & 15;
+        r->coeffs[8 * i + 4] = (a[4 * i + 2] >> 0) & 15;
+        r->coeffs[8 * i + 5] = (a[4 * i + 2] >> 4) & 15;
+        r->coeffs[8 * i + 6] = (a[4 * i + 3] >> 0) & 15;
+        r->coeffs[8 * i + 7] = (a[4 * i + 3] >> 4) & 15;
 
+        r->coeffs[8 * i + 0] = FPTRU_BOUND - r->coeffs[8 * i + 0];
+        r->coeffs[8 * i + 1] = FPTRU_BOUND - r->coeffs[8 * i + 1];
+        r->coeffs[8 * i + 2] = FPTRU_BOUND - r->coeffs[8 * i + 2];
+        r->coeffs[8 * i + 3] = FPTRU_BOUND - r->coeffs[8 * i + 3];
+        r->coeffs[8 * i + 4] = FPTRU_BOUND - r->coeffs[8 * i + 4];
+        r->coeffs[8 * i + 5] = FPTRU_BOUND - r->coeffs[8 * i + 5];
+        r->coeffs[8 * i + 6] = FPTRU_BOUND - r->coeffs[8 * i + 6];
+        r->coeffs[8 * i + 7] = FPTRU_BOUND - r->coeffs[8 * i + 7];
+    }
+#elif (FPTRU_N == 761)
+    if(i == FPTRU_N/8){
+        r->coeffs[8 * i + 0] = (a[4 * i + 0] >> 0) & 15;
+        r->coeffs[8 * i + 0] = FPTRU_BOUND - r->coeffs[8 * i + 0];
+    }
+    else{
+        r->coeffs[8 * i + 0] = (a[4 * i + 0] >> 0) & 15;
+        r->coeffs[8 * i + 1] = (a[4 * i + 0] >> 4) & 15;
+        r->coeffs[8 * i + 2] = (a[4 * i + 1] >> 0) & 15;
+        r->coeffs[8 * i + 3] = (a[4 * i + 1] >> 4) & 15;
+        r->coeffs[8 * i + 4] = (a[4 * i + 2] >> 0) & 15;
+        r->coeffs[8 * i + 5] = (a[4 * i + 2] >> 4) & 15;
+        r->coeffs[8 * i + 6] = (a[4 * i + 3] >> 0) & 15;
+        r->coeffs[8 * i + 7] = (a[4 * i + 3] >> 4) & 15;
+
+        r->coeffs[8 * i + 0] = FPTRU_BOUND - r->coeffs[8 * i + 0];
+        r->coeffs[8 * i + 1] = FPTRU_BOUND - r->coeffs[8 * i + 1];
+        r->coeffs[8 * i + 2] = FPTRU_BOUND - r->coeffs[8 * i + 2];
+        r->coeffs[8 * i + 3] = FPTRU_BOUND - r->coeffs[8 * i + 3];
+        r->coeffs[8 * i + 4] = FPTRU_BOUND - r->coeffs[8 * i + 4];
+        r->coeffs[8 * i + 5] = FPTRU_BOUND - r->coeffs[8 * i + 5];
+        r->coeffs[8 * i + 6] = FPTRU_BOUND - r->coeffs[8 * i + 6];
+        r->coeffs[8 * i + 7] = FPTRU_BOUND - r->coeffs[8 * i + 7];
+    }
+#endif
+}
+
+__global__ void unpack_sk_batch(poly *r, const unsigned char *a){
+    unpack_sk_gpu(&r[blockIdx.x],&a[blockIdx.x * FPTRU_KEM_SECRETKEYBYTES]);
+}
 void pack_ct(unsigned char *r, const poly *a)
 {
     unsigned int i;
@@ -742,6 +807,41 @@ void unpack_ct(poly *r, const unsigned char *a)
     r->coeffs[2 * i] = ((a[3 * i + 0] >> 0) | (((uint16_t)a[3 * i + 1] & 0xF) << 8)) & 0xFFF;
 #endif
 }
+__device__ void unpack_ct_gpu(poly * r,const unsigned char *a){
+    unsigned int i = threadIdx.x;
+#if (FPTRU_Q2 == 1024)
+    if(i == FPTRU_N / 4){
+        r->coeffs[4 * i + 0] = ((a[5 * i + 0] >> 0) | ((uint16_t)a[5 * i + 1] << 8)) & 0x3FF;
+    }
+    else{
+        r->coeffs[4 * i + 0] = ((a[5 * i + 0] >> 0) | ((uint16_t)a[5 * i + 1] << 8)) & 0x3FF;
+        r->coeffs[4 * i + 1] = ((a[5 * i + 1] >> 2) | ((uint16_t)a[5 * i + 2] << 6)) & 0x3FF;
+        r->coeffs[4 * i + 2] = ((a[5 * i + 2] >> 4) | ((uint16_t)a[5 * i + 3] << 4)) & 0x3FF;
+        r->coeffs[4 * i + 3] = ((a[5 * i + 3] >> 6) | ((uint16_t)a[5 * i + 4] << 2)) & 0x3FF;
+    }
+    
+#elif (FPTRU_Q2 == 2048)
+    if(i == FPTRU_N / 8){
+        r->coeffs[8 * i + 0] = ((a[11 * i + 0] >> 0) | ((uint16_t)a[11 * i + 1] << 8)) & 0x7FF;
+        r->coeffs[8 * i + 1] = ((a[11 * i + 1] >> 3) | ((uint16_t)a[11 * i + 2] << 5)) & 0x7FF;
+        r->coeffs[8 * i + 2] = ((a[11 * i + 2] >> 6) | ((uint16_t)a[11 * i + 3] << 2) | ((uint16_t)a[11 * i + 4] << 10)) & 0x7FF;
+        r->coeffs[8 * i + 3] = ((a[11 * i + 4] >> 1) | ((uint16_t)a[11 * i + 5] << 7)) & 0x7FF;
+        r->coeffs[8 * i + 4] = ((a[11 * i + 5] >> 4) | ((uint16_t)a[11 * i + 6] << 4)) & 0x7FF;
+    }
+    else{
+        r->coeffs[8 * i + 0] = ((a[11 * i + 0] >> 0) | ((uint16_t)a[11 * i + 1] << 8)) & 0x7FF;
+        r->coeffs[8 * i + 1] = ((a[11 * i + 1] >> 3) | ((uint16_t)a[11 * i + 2] << 5)) & 0x7FF;
+        r->coeffs[8 * i + 2] = ((a[11 * i + 2] >> 6) | ((uint16_t)a[11 * i + 3] << 2) | ((uint16_t)a[11 * i + 4] << 10)) & 0x7FF;
+        r->coeffs[8 * i + 3] = ((a[11 * i + 4] >> 1) | ((uint16_t)a[11 * i + 5] << 7)) & 0x7FF;
+        r->coeffs[8 * i + 4] = ((a[11 * i + 5] >> 4) | ((uint16_t)a[11 * i + 6] << 4)) & 0x7FF;
+        r->coeffs[8 * i + 5] = ((a[11 * i + 6] >> 7) | ((uint16_t)a[11 * i + 7] << 1) | ((uint16_t)a[11 * i + 8] << 9)) & 0x7FF;
+        r->coeffs[8 * i + 6] = ((a[11 * i + 8] >> 2) | ((uint16_t)a[11 * i + 9] << 6)) & 0x7FF;
+        r->coeffs[8 * i + 7] = ((a[11 * i + 9] >> 5) | ((uint16_t)a[11 * i + 10] << 3)) & 0x7FF;
+    }
+    
+#endif
+}
+
 
 /*公式的验证结果如下
 r->coeffs[0] = ((a[11 * idx_h + 0] >> 0) | ((uint16_t)a[11 * idx_h + 1] << 8) | (((uint16_t)a[11 * idx_h + 4] << 10) & 0 )) & 0x7FF
@@ -773,7 +873,8 @@ __device__ void unpack_ct_cuda(poly * r,const unsigned char *a){
 
 }
 __global__ void unpack_ct_batch(poly * r,const unsigned char *a){
-    unpack_ct_cuda(&r[blockIdx.x],&a[blockIdx.x * FPTRU_KEM_CIPHERTEXTBYTES]);
+    //unpack_ct_cuda(&r[blockIdx.x],&a[blockIdx.x * FPTRU_KEM_CIPHERTEXTBYTES]);
+    unpack_ct_gpu(&r[blockIdx.x],&a[blockIdx.x * FPTRU_KEM_CIPHERTEXTBYTES]);
 }
 
 

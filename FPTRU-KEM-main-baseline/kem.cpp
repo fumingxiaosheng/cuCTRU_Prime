@@ -113,9 +113,9 @@ private:
     }
 };
 
-ChronoTimer shake256_1("shake256_1");
-ChronoTimer sha3_512_1("sha3_512_1");
-ChronoTimer shake256_2("shake256_2");
+// ChronoTimer shake256_1("shake256_1");
+// ChronoTimer sha3_512_1("sha3_512_1");
+// ChronoTimer shake256_2("shake256_2");
 
 ChronoTimer keygen("keygen");
 ChronoTimer encaps("encaps");
@@ -151,25 +151,25 @@ int crypto_kem_encaps(unsigned char *ct,
   //TODO:在不固定值的情况下，需要打开randombytes
   randombytes(buf, FPTRU_SEEDBYTES);
 
-  for(int k=0;k<FPTRU_SEEDBYTES;k++){
-      //printf("0x%x,",buf_h[k]);
-      buf[k]=seed[k];
-  }
-  shake256_1.start();
+  // for(int k=0;k<FPTRU_SEEDBYTES;k++){
+  //     //printf("0x%x,",buf_h[k]);
+  //     buf[k]=seed[k];
+  // }
+  //shake256_1.start();
   crypto_hash_shake256(m + FPTRU_PREFIXHASHBYTES, FPTRU_MSGBYTES, buf, 32);
-  shake256_1.stop();
+  //shake256_1.stop();
 
   for (i = 0; i < FPTRU_PREFIXHASHBYTES; ++i)
     m[i] = pk[i];
 
-  sha3_512_1.start();
+  //sha3_512_1.start();
   crypto_hash_sha3_512(buf, m, FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES);//(𝐾, 𝑐𝑜𝑖𝑛) ≔ ℋ(𝐼𝐷(𝑝𝑘), 𝑚)
-  sha3_512_1.stop();
+  //sha3_512_1.stop();
   
 
-  shake256_2.start();
+  //shake256_2.start();
   crypto_hash_shake256(buf + FPTRU_SHAREDKEYBYTES, FPTRU_COIN_BYTES / 2, buf + FPTRU_SHAREDKEYBYTES, 32);
-  shake256_2.stop();
+  //shake256_2.stop();
 
   crypto_pke_enc(ct, pk, m + FPTRU_PREFIXHASHBYTES, buf + FPTRU_SHAREDKEYBYTES);
 
