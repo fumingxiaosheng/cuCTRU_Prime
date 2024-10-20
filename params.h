@@ -10,7 +10,7 @@
 #define USING_PK_ENCODE 1
 
 #ifndef BATCH_SIZE
-#define BATCH_SIZE 1000
+#define BATCH_SIZE 100
 #endif
 
 #ifndef NUM_THREAD
@@ -18,6 +18,8 @@
 #endif
 
 #define HXWTEST 1
+
+#define dg
 
 /*2024-3-14:
 宏对应的实际含义:FPTRU_Q:素阶数域中的元素的模数
@@ -59,7 +61,7 @@
 #if (FPTRU_N == 653)
 #define FPTRU_PKE_PUBLICKEYBYTES 994
 #elif (FPTRU_N == 761)
-#define FPTRU_PKE_PUBLICKEYBYTES 1158
+#define FPTRU_PKE_PUBLICKEYBYTES 1158 //1237
 #elif (FPTRU_N == 1277)
 #define FPTRU_PKE_PUBLICKEYBYTES 2067
 #endif
