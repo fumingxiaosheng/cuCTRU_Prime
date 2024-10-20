@@ -40,7 +40,7 @@ SOURCE_1277 = $(FIPS202_WS_SOURCE) $(SRCDIR_SOURCE) $(POLY_NTT_1277_SOURCE) $(PO
 ## command
 .PHONY: all clean build
 
-build: $(BLDDIR)/test761
+build: $(BLDDIR)/test1277 $(BLDDIR)/test761 $(BLDDIR)/test653_v2
 
 $(BLDDIR)/test653_v2: $(SOURCE)
 	$(NVCC) $(NVCCFLAGS) -DFPTRU_N=653 -DNEW=1 -g $^ -o $@ 
@@ -67,11 +67,9 @@ batch_thread: $(SOURCE)
 	done
 
 
-clean:	
-	rm -r $(BLDDIR)/test761
-	rm -r $(BLDDIR)/test653_v1
-	rm -r $(BLDDIR)/test653_v2
-	rm -r $(BLDDIR)/test653
+clean:
+#	rm -r $(BLDDIR)/test653_v2
 	rm -r $(BLDDIR)/test1277
+#	rm -r $(BLDDIR)/test761
 
 

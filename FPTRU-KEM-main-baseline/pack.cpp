@@ -145,7 +145,7 @@ void unpack_pk(poly *r, const unsigned char *a)
         r->coeffs[i] = ((int16_t)R[i]);
 }
 #endif
-
+#if (USING_PK_ENCODE == 0)
 #if(FPTRU_N == 761)
 void pack_pk(unsigned char *r, const poly *a)
 {
@@ -260,6 +260,8 @@ void unpack_pk(poly *r, const unsigned char *a) {
     r->coeffs[i*8+4] = (a[i*13 + 6] >> 4) | (uint16_t)(a[i*13 + 7]  << 4) | (uint16_t)(a[i*13 + 8]  << 12);
     r->coeffs[i*8+4] &= 0x1FFF;
 }
+#endif
+
 #endif
 void pack_sk(unsigned char *r, const poly *a)
 {

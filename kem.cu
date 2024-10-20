@@ -1125,7 +1125,7 @@ double crypto_kem_keygen_no_inv_batch_stream_ordered_async(unsigned char *array_
     //hash DONE:去用上别人的hash代码
  
     //BEFORE_SPEED
-    atpqc_cuda::fips202_ws::global::shake<256><<<BATCH_SIZE, 32, 0, stream>>>(coins_d_0, FPTRU_COIN_BYTES, FPTRU_COIN_BYTES, coins_d_0, FPTRU_COIN_BYTES, FPTRU_SEEDBYTES, 32);
+    atpqc_cuda::fips202_ws::global::shake<256><<<BATCH_SIZE, 32, 0, stream>>>(coins_d_0, FPTRU_COIN_BYTES, FPTRU_COIN_BYTES, coins_d_0, FPTRU_COIN_BYTES, FPTRU_SEEDBYTES, BATCH_SIZE);
     //AFTER_SPEED("hash")
 
     //进入pke.keygen
@@ -2617,12 +2617,24 @@ double crypto_kem_decaps_v3(unsigned char *k, const unsigned char *ct, const uns
 
 void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t stream,unsigned char * coins_h_0,unsigned char * coins_d_0,poly *finv_0,poly *h_0,poly *f_0,poly * g_0,poly *h_h_0,poly *f_h_0, unsigned char * d_pk,int batch_size){
     
+// #ifdef allzero
+//     printf("look coins in keygen\n");
+//     for(int j=0;j<batch_size;j++){
+//         for(int i=0;i<FPTRU_SEEDBYTES;i++){
+//             printf("%d,",coins_h_0[j * FPTRU_COIN_BYTES + i]);
+//         }
+//         printf("\n");
+//     }
     
+// #endif
 
     HANDLE_ERROR(cudaMemcpyAsync(coins_d_0, coins_h_0, FPTRU_COIN_BYTES * batch_size, cudaMemcpyHostToDevice, stream));
     
-    atpqc_cuda::fips202_ws::global::shake<256><<<batch_size, 32, 0, stream>>>(coins_d_0, FPTRU_COIN_BYTES, FPTRU_COIN_BYTES, coins_d_0, FPTRU_COIN_BYTES, FPTRU_SEEDBYTES, 32);
-    
+    atpqc_cuda::fips202_ws::global::shake<256><<<batch_size, 32, 0, stream>>>(coins_d_0, FPTRU_COIN_BYTES, FPTRU_COIN_BYTES, coins_d_0, FPTRU_COIN_BYTES, FPTRU_SEEDBYTES, batch_size);
+// #ifdef allzero
+//     printf("look coins_d after shake in keygen\n");
+
+// #endif
 #if(FPTRU_BOUND == 7)
     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 4 + 1, 0, stream >>>(f_0,coins_d_0,1,1,FPTRU_COIN_BYTES);
     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 4 + 1, 0, stream>>>(g_0,coins_d_0 + FPTRU_COIN_BYTES / 2,0,0,FPTRU_COIN_BYTES);
@@ -2630,7 +2642,28 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 8 + 1, 0, stream>>>(f_0,coins_d_0,1,1,FPTRU_COIN_BYTES);
     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 8 + 1, 0, stream>>>(g_0,coins_d_0 + FPTRU_COIN_BYTES / 2,0,0,FPTRU_COIN_BYTES);
 #endif
-   
+
+// #ifdef allzero
+//     printf("look f_0 in keygen\n");
+//     HANDLE_ERROR(cudaMemcpyAsync(h_h_0, f_0, sizeof(poly) * batch_size, cudaMemcpyDeviceToHost, stream));
+//     cudaDeviceSynchronize();
+//     for(int j=0;j<batch_size;j++){
+//         for(int i=0;i<FPTRU_N;i++){
+//             printf("%d,",h_h_0[j].coeffs[i]);
+//         }
+//         printf("\n");
+//     }
+
+//     printf("look g_0 in keygen\n");
+//     HANDLE_ERROR(cudaMemcpyAsync(h_h_0, g_0, sizeof(poly) * batch_size, cudaMemcpyDeviceToHost, stream));
+//     cudaDeviceSynchronize();
+//     for(int j=0;j<batch_size;j++){
+//         for(int i=0;i<FPTRU_N;i++){
+//             printf("%d,",h_h_0[j].coeffs[i]);
+//         }
+//         printf("\n");
+//     }
+// #endif
 
 #if (FPTRU_N == 653 || FPTRU_N == 761)
     poly_inv<<<batch_size,FPTRU_N ,0,stream>>>(finv_0,f_0);
@@ -2657,7 +2690,7 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
 #endif
 
 #ifndef dg
-#define ddddbug
+//#define ddddbug
 #ifdef ddddbug
     printf("look pk in decaps\n");
     HANDLE_ERROR(cudaMemcpyAsync(h_h_0, h_0, sizeof(poly) * batch_size, cudaMemcpyDeviceToHost, stream));
@@ -2669,12 +2702,11 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
         printf("\n\n");
     }
 #endif
-    CUDATimer aa("keygen pack_pk_batch");
-    aa.start();
+    //CUDATimer aa("keygen pack_pk_batch");
+    //aa.start();
     pack_pk_simple_batch<<<batch_size,FPTRU_N/8+1,0,stream>>>(d_pk,h_0);
-    
     HANDLE_ERROR(cudaMemcpyAsync(array_pk, d_pk, FPTRU_KEM_PUBLICKEYBYTES * batch_size, cudaMemcpyDeviceToHost, stream));
-    aa.stop();
+    //aa.stop();
 #endif
 #ifdef dg
     HANDLE_ERROR(cudaMemcpyAsync(h_h_0, h_0, sizeof(poly) * batch_size, cudaMemcpyDeviceToHost, stream));
@@ -2683,8 +2715,8 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
     
     cudaStreamSynchronize(stream);
     
-    ChronoTimer timer_keypair_last("keygen last");
-    timer_keypair_last.start();
+    //ChronoTimer timer_keypair_last("keygen last");
+    //timer_keypair_last.start();
     for(int j=0;j<batch_size;j++){
 #ifdef dg
         pack_pk(&array_pk[j * FPTRU_KEM_PUBLICKEYBYTES],&h_h_0[j]);
@@ -2695,7 +2727,7 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
         }
         randombytes(array_sk + j * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES, FPTRU_SEEDBYTES);
     }
-    timer_keypair_last.stop();
+    //timer_keypair_last.stop();
 }
 
 
@@ -2807,12 +2839,12 @@ void crypto_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk,cudaSt
     // bb.stop();
 
 #ifndef dg
-    CUDATimer a("unpack_pk_batch");// must in function
-    a.start();
+    //CUDATimer a("unpack_pk_batch");// must in function
+    //a.start();
     HANDLE_ERROR(cudaMemcpyAsync(pk_d, pk, FPTRU_KEM_PUBLICKEYBYTES * batch_size, cudaMemcpyHostToDevice, stream));
     unpack_pk_simple_batch<<<batch_size,FPTRU_N/8 + 1,0,stream>>>(sigma_h_d,pk_d,FPTRU_KEM_PUBLICKEYBYTES);
-    a.stop();
-#define dddbug
+    //a.stop();
+//#define dddbug
 #ifdef dddbug
     HANDLE_ERROR(cudaMemcpyAsync(h_h, sigma_h_d, batch_size * sizeof(poly), cudaMemcpyDeviceToHost, stream));
     cudaDeviceSynchronize();
@@ -2845,23 +2877,23 @@ void crypto_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk,cudaSt
     atpqc_cuda::fips202_ws::global::shake<256><<<batch_size, 32, 0, stream>>>(buf_d + FPTRU_SHAREDKEYBYTES, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, FPTRU_COIN_BYTES / 2, buf_d + FPTRU_SHAREDKEYBYTES, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, 32, batch_size); 
     
     
-// #if(FPTRU_BOUND == 7)
-//     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 4 + 1, 0, stream>>>(r_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
+#if(FPTRU_BOUND == 7)
+    poly_sample_and_double_v2<<<batch_size,FPTRU_N / 4 + 1, 0, stream>>>(r_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
 
-// #elif(FPTRU_BOUND == 5)
-//     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 8 + 1, 0, stream>>>(r_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
-// #endif
+#elif(FPTRU_BOUND == 5)
+    poly_sample_and_double_v2<<<batch_size,FPTRU_N / 8 + 1, 0, stream>>>(r_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
+#endif
     
     
-// #if (FPTRU_N == 653)
-//     poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
-// #elif (FPTRU_N == 761)
-//     poly_mul_761_batch_q1<<<batch_size,192,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
-// #elif (FPTRU_N == 1277)
-//     poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
-// #endif
+#if (FPTRU_N == 653)
+    poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
+#elif (FPTRU_N == 761)
+    poly_mul_761_batch_q1<<<batch_size,192,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
+#elif (FPTRU_N == 1277)
+    poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
+#endif
     
-    poly_poly_sample_and_double_mul_761_q1<<<batch_size,192,0,stream>>>(buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),sigma_h_d,sigma_h_d);
+    // poly_poly_sample_and_double_mul_761_q1<<<batch_size,192,0,stream>>>(buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),sigma_h_d,sigma_h_d);
 
     
 #if (FPTRU_N == 653)
@@ -2916,10 +2948,10 @@ void fptru_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk){
 
     
     for(int i=0;i<BATCH_SIZE;i++){
-        //randombytes(&buf_h[i*(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2)], FPTRU_SEEDBYTES);
-        for(int j=0;j<FPTRU_SEEDBYTES;j++){
-            buf_h[i*(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2)+j] = seed[j];
-        }
+        randombytes(&buf_h[i*(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2)], FPTRU_SEEDBYTES);
+        // for(int j=0;j<FPTRU_SEEDBYTES;j++){
+        //     buf_h[i*(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2)+j] = seed[j];
+        // }
     }
 
     ChronoTimer timer_encaps_batch("encaps batch");
@@ -2998,12 +3030,12 @@ double crypto_decaps(unsigned char *k, const unsigned char *ct, const unsigned c
     
     HANDLE_ERROR(cudaMemcpyAsync(sk_d, sk, batch_size * FPTRU_KEM_SECRETKEYBYTES, cudaMemcpyHostToDevice, stream));
     HANDLE_ERROR(cudaMemcpyAsync(polys_d, polys, batch_size * sizeof(poly) * 2, cudaMemcpyHostToDevice, stream));
-    CUDATimer a("unpack_pk_batch");// must in function
-    a.start();
+    //CUDATimer a("unpack_pk_batch");// must in function
+    //a.start();
     unpack_pk_simple_batch<<<batch_size,FPTRU_N/8 + 1,0,stream>>>(polys_d + 2 * batch_size,sk_d + FPTRU_PKE_SECRETKEYBYTES,FPTRU_KEM_SECRETKEYBYTES);
-    a.stop();
+    //a.stop();
 
-#define ddbug
+//#define ddbug
 #ifdef ddbug
     HANDLE_ERROR(cudaMemcpyAsync(polys + 2*batch_size, polys_d + 2 * batch_size, batch_size * sizeof(poly), cudaMemcpyDeviceToHost, stream));
     cudaDeviceSynchronize();
@@ -3047,11 +3079,11 @@ double crypto_decaps(unsigned char *k, const unsigned char *ct, const unsigned c
 
 
 #if (FPTRU_N == 653)
-    poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(r_sigma_d,&polys[2 * batch_size],r_sigma_d);
+    poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(r_sigma_d,&polys_d[2 * batch_size],r_sigma_d);
 #elif(FPTRU_N == 761)
-    poly_mul_761_batch_q1<<<batch_size,192,0,stream>>>(r_sigma_d,&polys[2 * batch_size],r_sigma_d);
+    poly_mul_761_batch_q1<<<batch_size,192,0,stream>>>(r_sigma_d,&polys_d[2 * batch_size],r_sigma_d);
 #elif(FPTRU_N == 1277)
-    poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(r_sigma_d,&polys[2 * batch_size],r_sigma_d);
+    poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(r_sigma_d,&polys_d[2 * batch_size],r_sigma_d);
 #endif
 
 
@@ -3146,11 +3178,11 @@ void fptru_decaps(unsigned char *k, const unsigned char *ct, const unsigned char
         cudaDeviceSynchronize();
         timer_decaps_batch.stop();
 
-        printf("解密结果为\n");
-        for(int i=0;i<BATCH_SIZE;i++){
-            printf("%d,",res[i]);//值为0代表方案成功
-        }
-        printf("\n");
+        // printf("解密结果为\n");
+        // for(int i=0;i<BATCH_SIZE;i++){
+        //     printf("%d,",res[i]);//值为0代表方案成功
+        // }
+        // printf("\n");
     }
 
     HANDLE_ERROR(cudaFree(polys_d));
