@@ -285,6 +285,7 @@ __device__ void pack_pk_simple_gpu(unsigned char *r, unsigned char *sk,const pol
         sk[i *13+ 10] = r[i *13+ 10] = a->coeffs[i*8+6] >> 2;
         sk[i *13+ 11] = r[i *13+ 11] = (a->coeffs[i*8+6] >> 10) | ((int16_t)a->coeffs[i*8+7] << 3);
         sk[i *13+ 12] = r[i *13+ 12] = a->coeffs[i*8+7] >> 5;
+
     }
 #elif (FPTRU_N ==653 || FPTRU_N == 1277)
     if(i == FPTRU_N/8){

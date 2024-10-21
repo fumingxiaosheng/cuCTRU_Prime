@@ -10,14 +10,14 @@
 #define USING_PK_ENCODE 1
 
 #ifndef BATCH_SIZE
-#define BATCH_SIZE 1000
+#define BATCH_SIZE 1
 #endif
 
 #ifndef NUM_THREAD
 #define NUM_THREAD 10
 #endif
 
-#define HXWTEST 100
+#define HXWTEST 1
 
 //#define dg
 

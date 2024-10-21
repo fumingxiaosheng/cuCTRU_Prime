@@ -120,6 +120,8 @@ private:
 ChronoTimer keygen("keygen");
 ChronoTimer encaps("encaps");
 ChronoTimer decaps("decpas");
+
+unsigned char seed[FPTRU_SEEDBYTES]={213,153,187,148,28,44,238,49,18,139,227,227,58,178,45,166,105,7,200,183,92,88,9,9,157,63,142,243,64,211,192,209,};
 int crypto_kem_keygen(unsigned char *pk,
                       unsigned char *sk)
 {
@@ -128,18 +130,30 @@ int crypto_kem_keygen(unsigned char *pk,
   unsigned char coins[FPTRU_COIN_BYTES];
 
   randombytes(coins, FPTRU_SEEDBYTES);
+
+  for(int k=0;k<FPTRU_SEEDBYTES;k++){
+      //printf("0x%x,",buf_h[k]);
+      coins[k]=seed[k];
+  }
+
   crypto_hash_shake256(coins, FPTRU_COIN_BYTES, coins, FPTRU_SEEDBYTES);
   crypto_pke_keygen(pk, sk, coins);
 
   for (i = 0; i < FPTRU_PKE_PUBLICKEYBYTES; ++i)
     sk[i + FPTRU_PKE_SECRETKEYBYTES] = pk[i];
 
-  randombytes(sk + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES, FPTRU_SEEDBYTES);
+  printf("look sk\n");
+  for(int i=0;i<FPTRU_KEM_SECRETKEYBYTES;i++){
+      printf("%d,",sk[i]);
+  }
+  printf("\n\n");
+
+  //randombytes(sk + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES, FPTRU_SEEDBYTES);
   keygen.stop();
   return 0;
 }
 
-unsigned char seed[FPTRU_SEEDBYTES]={0x3f,0x9,0x39,0x39,0x1f,0xbb,0x3d,0x43,0xe6,0x73,0x8f,0x5c,0x85,0xfa,0xf6,0x5d,0xc,0xa8,0xf2,0xe2,0x84,0xc8,0xaa,0x73,0xa5,0x5b,0xc1,0xe2,0xed,0xc,0x85,0x16};
+
 int crypto_kem_encaps(unsigned char *ct,
                       unsigned char *k,
                       const unsigned char *pk)

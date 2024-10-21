@@ -46,7 +46,7 @@ build761: $(BLDDIR)/test761
 
 build653: $(BLDDIR)/test653_v2
 
-build1277: $(BLDDIR)/test1277
+build1277: $(BLDDIR)/test1277_v2
 $(BLDDIR)/test653_v2: $(SOURCE)
 	$(NVCC) $(NVCCFLAGS) -DFPTRU_N=653 -DNEW=1 -g $^ -o $@ 
 
@@ -59,7 +59,7 @@ $(BLDDIR)/test653: $(SOURCE)
 $(BLDDIR)/test761: $(SOURCE_761)
 	$(NVCC) $(NVCCFLAGS) -DFPTRU_N=761 -DNEW=1 -g $^ -o $@
 
-$(BLDDIR)/test1277: $(SOURCE_1277)
+$(BLDDIR)/test1277_v2: $(SOURCE_1277)
 	$(NVCC) $(NVCCFLAGS) -DFPTRU_N=1277 -DNEW=1 -g $^ -o $@
 
 
@@ -73,6 +73,9 @@ batch_thread: $(SOURCE)
 
 clean761:
 	rm -r $(BLDDIR)/test761
+
+clean1277:
+	rm -r $(BLDDIR)/test1277
 
 clean653:
 	rm -r $(BLDDIR)/test653_v2

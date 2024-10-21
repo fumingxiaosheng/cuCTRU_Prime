@@ -359,7 +359,38 @@ int main_2(){
     }
 #endif
 }
+void look(int j,unsigned char * array_pk,unsigned char * array_sk,unsigned char * k1, unsigned char * ct, unsigned char *k2){
+    printf("pk\n");
+    for(int i=0;i<FPTRU_KEM_PUBLICKEYBYTES;i++){
+        printf("0x%x,",array_pk[j * FPTRU_KEM_PUBLICKEYBYTES + i]);
+    }
 
+    printf("\n\n");
+    printf("sk\n");
+    for(int i=0;i<FPTRU_KEM_SECRETKEYBYTES;i++){//FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES;i++){
+        printf("0x%x,",array_sk[j * FPTRU_KEM_SECRETKEYBYTES + i]);
+    }
+
+    printf("\n\n");
+
+    printf("result ct\n");
+    for(int i=0;i<FPTRU_KEM_CIPHERTEXTBYTES;i++){
+        printf("0x%x,",ct[FPTRU_KEM_CIPHERTEXTBYTES * j + i]);
+    }
+    printf("\n\n");
+
+    printf("result k1\n");
+    for(int i=0;i<FPTRU_SHAREDKEYBYTES;i++){
+        printf("0x%x,",k1[FPTRU_SHAREDKEYBYTES * j + i]);
+    }
+    printf("\n\n");
+
+    printf("result k2\n");
+    for(int i=0;i<FPTRU_SHAREDKEYBYTES;i++){
+        printf("0x%x,",k2[FPTRU_SHAREDKEYBYTES * j + i]);
+    }
+    printf("\n\n");
+}
 
 //下面用于测试不添加malloc操作的计时
 //#define OUTPUTKEY 1
@@ -368,7 +399,7 @@ int main_2(){
 int main(){
     unsigned char array_pk[FPTRU_KEM_PUBLICKEYBYTES * BATCH_SIZE] = {0};
     unsigned char array_sk[FPTRU_KEM_SECRETKEYBYTES * BATCH_SIZE] = {0};
-
+    
     unsigned char k1[FPTRU_SHAREDKEYBYTES * BATCH_SIZE] = {0};
     unsigned char ct[FPTRU_KEM_CIPHERTEXTBYTES * BATCH_SIZE] = {0};
 
@@ -380,7 +411,7 @@ int main(){
 
     fptru_encaps(ct,k1,array_pk);
     
-    fptru_decaps(k2,ct,array_sk,res);
+    fptru_decaps(k2,ct,array_sk,res,k1);
 
 #ifdef OUTPUTKEY //验证整个keygen的正确性
     for(int j=0;j<BATCH_SIZE;j++){
@@ -399,11 +430,11 @@ int main(){
 
 #ifdef OUTPENCAPS
     for(int j=0;j<BATCH_SIZE;j++){
-        // printf("result ct\n");
-        // for(int i=0;i<FPTRU_KEM_CIPHERTEXTBYTES;i++){
-        //     printf("0x%x,",ct[FPTRU_KEM_CIPHERTEXTBYTES * j + i]);
-        // }
-        // printf("\n\n");
+        printf("result ct\n");
+        for(int i=0;i<FPTRU_KEM_CIPHERTEXTBYTES;i++){
+            printf("0x%x,",ct[FPTRU_KEM_CIPHERTEXTBYTES * j + i]);
+        }
+        printf("\n\n");
 
         printf("result k1\n");
         for(int i=0;i<FPTRU_SHAREDKEYBYTES;i++){
@@ -427,6 +458,10 @@ int main(){
         if(k1[i]!=k2[i]){
             printf("(%d,%d,%d),",i,k1[i],k2[i]);
         }
+    }
+    printf("where\n");
+    for(int i=0;i<BATCH_SIZE;i++){
+        if(res[i]!=0) look(i,array_pk,array_sk,k1,ct,k2);
     }
 
     return 0;

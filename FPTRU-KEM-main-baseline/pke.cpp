@@ -24,10 +24,46 @@ void crypto_pke_keygen(unsigned char pk[FPTRU_PKE_PUBLICKEYBYTES],
   f.coeffs[0] += 1;
 
   poly_inverse(&finv, &f);
+  
+  printf("f\n");
+  for(int i=0;i<FPTRU_N;i++){
+    printf("%d,",f.coeffs[i]);
+  }
+  printf("\n");
+
+  printf("look finv\n");
+  for(int i=0;i<FPTRU_N;i++){
+    printf("%d,",finv.coeffs[i]);
+  }
+  printf("\n");
   poly_mul_q1(&h, &finv, &g);
+
+  printf("g\n");
+  for(int i=0;i<FPTRU_N;i++){
+    printf("%d,",g.coeffs[i]);
+  }
+  printf("\n");
+
+  printf("look h\n");
+  for(int i=0;i<FPTRU_N;i++){
+    printf("%d,",h.coeffs[i]);
+  }
+  printf("\n");
   poly_fqcsubq(&h);
 
+  printf("look h\n");
+  for(int i=0;i<FPTRU_N;i++){
+    printf("%d,",h.coeffs[i]);
+  }
+  printf("\n");
+
   pack_pk(pk, &h);
+  printf("look pk\n");
+  for(int i=0;i<FPTRU_KEM_PUBLICKEYBYTES;i++){
+      printf("%d,",pk[i]);
+  }
+  printf("\n\n");
+
   pack_sk(sk, &f);
 }
 
