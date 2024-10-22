@@ -3350,13 +3350,12 @@ double crypto_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,unsi
         
         fail = (uint16_t)t;
         fail = (-fail) >> 31;
-        printf("%d,",fail);
+
         for (int i = 0; i < FPTRU_SHAREDKEYBYTES; ++i){
             k[FPTRU_SHAREDKEYBYTES * j + i] = buf_h[(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2) * j + i] ^ ((-fail) & (buf_h[(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2) * j + i] ^ buf2_h[(FPTRU_SHAREDKEYBYTES * 2) * j + i]));
         }
         res[j] = fail;
     }
-    printf("\n");
 
     return 0;
 

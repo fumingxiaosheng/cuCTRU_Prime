@@ -17,7 +17,7 @@
 #define NUM_THREAD 10
 #endif
 
-#define HXWTEST 1
+#define HXWTEST 100
 
 //#define dg
 
