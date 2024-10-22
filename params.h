@@ -3,14 +3,14 @@
 
 #ifndef FPTRU_N
 
-#define FPTRU_N 653
+#define FPTRU_N 1277
 
 #endif
 
 #define USING_PK_ENCODE 1
 
 #ifndef BATCH_SIZE
-#define BATCH_SIZE 1
+#define BATCH_SIZE 1000
 #endif
 
 #ifndef NUM_THREAD

@@ -2617,7 +2617,7 @@ double crypto_kem_decaps_v3(unsigned char *k, const unsigned char *ct, const uns
 
 #include <thread>
 using namespace std;
-#define why1277
+//#define why1277
 void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t stream,unsigned char * coins_h_0,unsigned char * coins_d_0,poly *finv_0,poly *h_0,poly *f_0,poly * g_0, unsigned char * d_pk,unsigned char * sk_d,int batch_size){
     
 // #ifdef allzero
@@ -2877,12 +2877,12 @@ double fptru_keygen(unsigned char *array_pk,unsigned char *array_sk){
 
     for(int i=0;i<BATCH_SIZE;i++){
         randombytes(&coins_h_0[i*FPTRU_COIN_BYTES], FPTRU_SEEDBYTES);
-        printf("random %d\n",i);
-        for(int j=0;j<FPTRU_SEEDBYTES;j++){
-            //printf("%d,",coins_h_0[i*FPTRU_COIN_BYTES + j]);
-            coins_h_0[i*FPTRU_COIN_BYTES + j] = seed[j];
-        }
-        printf("\n");
+        //printf("random %d\n",i);
+        // for(int j=0;j<FPTRU_SEEDBYTES;j++){
+        //     //printf("%d,",coins_h_0[i*FPTRU_COIN_BYTES + j]);
+        //     coins_h_0[i*FPTRU_COIN_BYTES + j] = seed[j];
+        // }
+        // printf("\n");
         //randombytes(array_sk + i * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES, FPTRU_SEEDBYTES);
     }
 

@@ -97,7 +97,9 @@ __device__ int32_t pseudomersenne_reduce_single_n1277_cuda(int32_t a)
 #define pse_CT_a(i,j)  t = a[j];a[j]=(a[i] + t);a[i] = pseudomersenne_reduce_single_n1277_cuda(a[i] - t);
 #define pse_CT_b(i,j)  t = b[j];b[j]=(b[i] + t);b[i] = pseudomersenne_reduce_single_n1277_cuda(b[i] - t);
 
-
+#define sCT_b1(i,j) t = FACTOR_CSONFIDC * b[j];b[j] = (b[i] - t);b[i] = (b[i] + t);
+#define sCT_b2(i,j) t = b[j];b[j]=(b[i] + t);b[i] = b[i] - t;
+        
 #define CT_a(i,j,zeta)  t = montgomery_reduce_n1277_cuda((int64_t)zeta * a[j]); a[j] = (a[i] - t); a[i] = (a[i] + t);
 
 #define CT_b(i,j,zeta)  t = montgomery_reduce_n1277_cuda((int64_t)zeta * b[j]); b[j] = (b[i] - t); b[i] = (b[i] + t);
@@ -105,6 +107,8 @@ __device__ int32_t pseudomersenne_reduce_single_n1277_cuda(int32_t a)
 #define GS_a(i,j,zeta) t = a[i]; a[i] = (t + a[j]); a[j] = (t - a[j]); a[j] = montgomery_reduce_n1277_cuda((int64_t)zeta * a[j]);
 
 #define pse_GS_a(i,j) t = a[i]; a[i] = pseudomersenne_reduce_single_n1277_cuda(t + a[j]); a[j] = pseudomersenne_reduce_single_n1277_cuda(a[j]-t);
+
+#define special_GS_a(i,j) t = a[i];a[i] = (a[j] + t);a[j] = (a[j] - t);
 
 #define KARA(a, b, x, y, d) ((montgomery_reduce_n1277_cuda((int64_t)(a[x] + a[y]) * (b[x] + b[y])) - d[x] - d[y]))
 
@@ -162,20 +166,25 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     special_CT_b(2,6);
     special_CT_b(3,7);
 
-    //1 基2
+    //2 基2
     zeta = zetas_n1277[2];
 
     CT_a(0,2,zeta);
     CT_a(1,3,zeta);
 
-    CT_b(0,2,zeta);
-    CT_b(1,3,zeta);
+    // CT_b(0,2,zeta);
+    // CT_b(1,3,zeta);
+    sCT_b1(0,2);
+    sCT_b1(1,3);
 
     pse_CT_a(4,6);
     pse_CT_a(5,7);
 
-    pse_CT_b(4,6);
-    pse_CT_b(5,7);
+    // pse_CT_b(4,6);
+    // pse_CT_b(5,7);
+    sCT_b2(4,6);
+    sCT_b2(5,7);
+
 
     //3 基2
     zeta = zetas_n1277[4];
@@ -214,6 +223,7 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
 
     __syncthreads();
 
+
     int group_num = threadIdx.x / 40;
     int group_idx = threadIdx.x % 40;
     int start = group_num * 320;
@@ -239,18 +249,35 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
 
     //4 基2
     zeta = zetas_n1277[8 + group_num];
-    CT_a(0,4,zeta);
-    CT_a(1,5,zeta);
-    CT_a(2,6,zeta);
-    CT_a(3,7,zeta);
 
-    CT_b(0,4,zeta);
-    CT_b(1,5,zeta);
-    CT_b(2,6,zeta);
-    CT_b(3,7,zeta);
+    if (zeta == NUMBER_CSNNH){
+        pse_CT_a(0,4);
+        pse_CT_a(1,5);
+        pse_CT_a(2,6);
+        pse_CT_a(3,7);
+
+        pse_CT_b(0,4);
+        pse_CT_b(1,5);
+        pse_CT_b(2,6);
+        pse_CT_b(3,7);
+    }
+
+    else{
+        CT_a(0,4,zeta);
+        CT_a(1,5,zeta);
+        CT_a(2,6,zeta);
+        CT_a(3,7,zeta);
+
+        CT_b(0,4,zeta);
+        CT_b(1,5,zeta);
+        CT_b(2,6,zeta);
+        CT_b(3,7,zeta);
+    }
+    
 
     //5 基2
     zeta = zetas_n1277[16 + group_num * 2];
+    
     CT_a(0,2,zeta);
     CT_a(1,3,zeta);
 
@@ -258,11 +285,22 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     CT_b(1,3,zeta);
 
     zeta = zetas_n1277[16 + group_num * 2 + 1];
-    CT_a(4,6,zeta);
-    CT_a(5,7,zeta);
 
-    CT_b(4,6,zeta);
-    CT_b(5,7,zeta);
+    if (zeta == NUMBER_CSNNH){
+        pse_CT_a(4,6);
+        pse_CT_a(5,7);
+
+        pse_CT_b(4,6);
+        pse_CT_b(5,7);
+    }
+    else{
+        CT_a(4,6,zeta);
+        CT_a(5,7,zeta);
+
+        CT_b(4,6,zeta);
+        CT_b(5,7,zeta);
+    }
+    
 
     //6 基2
     zeta = zetas_n1277[32 + group_num * 4];
@@ -277,9 +315,18 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     CT_a(4,5,zeta);
     CT_b(4,5,zeta);
 
+    // 7
     zeta = zetas_n1277[32 + group_num * 4 + 3];
-    CT_a(6,7,zeta);
-    CT_b(6,7,zeta);
+
+    if(zeta == NUMBER_CSNNH){
+        pse_CT_a(6,7);
+        pse_CT_b(6,7);
+    }
+    else{
+        CT_a(6,7,zeta);
+        CT_b(6,7,zeta);
+    }
+    
 
     ntta.coeffs[start + group_idx] = a[0];
     ntta.coeffs[start + group_idx + 40] = a[1];
@@ -300,6 +347,7 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     nttb.coeffs[start + group_idx + 40 * 7] = b[7];
 
     __syncthreads();
+
 
     group_num = threadIdx.x / 5;
     group_idx = threadIdx.x % 5;
@@ -325,15 +373,29 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
 
     //7 基2
     zeta = zetas_n1277[64 + group_num];
-    CT_a(0,4,zeta);
-    CT_a(1,5,zeta);
-    CT_a(2,6,zeta);
-    CT_a(3,7,zeta);
+    if (zeta == NUMBER_CSNNH){
+        pse_CT_a(0,4);
+        pse_CT_a(1,5);
+        pse_CT_a(2,6);
+        pse_CT_a(3,7);
 
-    CT_b(0,4,zeta);
-    CT_b(1,5,zeta);
-    CT_b(2,6,zeta);
-    CT_b(3,7,zeta);
+        pse_CT_b(0,4);
+        pse_CT_b(1,5);
+        pse_CT_b(2,6);
+        pse_CT_b(3,7);
+    }
+
+    else{
+        CT_a(0,4,zeta);
+        CT_a(1,5,zeta);
+        CT_a(2,6,zeta);
+        CT_a(3,7,zeta);
+
+        CT_b(0,4,zeta);
+        CT_b(1,5,zeta);
+        CT_b(2,6,zeta);
+        CT_b(3,7,zeta);
+    }
 
     //8 基2
     zeta = zetas_n1277[128 + group_num * 2];
@@ -344,11 +406,20 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     CT_b(1,3,zeta);
 
     zeta = zetas_n1277[128 + group_num * 2 + 1];
-    CT_a(4,6,zeta);
-    CT_a(5,7,zeta);
+    if (zeta == NUMBER_CSNNH){
+        pse_CT_a(4,6);
+        pse_CT_a(5,7);
 
-    CT_b(4,6,zeta);
-    CT_b(5,7,zeta);
+        pse_CT_b(4,6);
+        pse_CT_b(5,7);
+    }
+    else{
+        CT_a(4,6,zeta);
+        CT_a(5,7,zeta);
+
+        CT_b(4,6,zeta);
+        CT_b(5,7,zeta);
+    }
 
     //9 基2
     zeta = zetas_n1277[256 + group_num * 4];
@@ -364,8 +435,14 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     CT_b(4,5,zeta);
 
     zeta = zetas_n1277[256 + group_num * 4 + 3];
-    CT_a(6,7,zeta);
-    CT_b(6,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        pse_CT_a(6,7);
+        pse_CT_b(6,7);
+    }
+    else{
+        CT_a(6,7,zeta);
+        CT_b(6,7,zeta);
+    }
 
     ntta.coeffs[start + group_idx] = a[0];
     ntta.coeffs[start + group_idx + 5] = a[1];
@@ -386,6 +463,21 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     nttb.coeffs[start + group_idx + 5 * 7] = b[7];
     
     __syncthreads();
+
+    // if(threadIdx.x ==0){
+    //     printf("look ntta\n");
+    //     for(int i=0;i<N_N1277;i++){
+    //         printf("%d,",ntta.coeffs[i]);
+    //     }
+    //     printf("\n");
+
+    //     printf("look nttb\n");
+    //     for(int i=0;i<N_N1277;i++){
+    //         printf("%d,",nttb.coeffs[i]);
+    //     }
+    //     printf("\n");
+    // }
+    // __syncthreads();
     
     //512 个 basemul
 
@@ -403,6 +495,14 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
 
     __syncthreads();
 
+    //  if(threadIdx.x ==0){
+    //     printf("look nttc\n");
+    //     for(int i=0;i<N_N1277;i++){
+    //         printf("%d,",nttc.coeffs[i]);
+    //     }
+    //     printf("\n");
+    // }
+    // __syncthreads();
 
     //inv_ntt
     group_num = threadIdx.x / 5;
@@ -430,7 +530,13 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     GS_a(4,5,zeta);
 
     zeta = zetas_inv_n1277[group_num * 4 + 3];
-    GS_a(6,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(6,7);
+    }
+    else{
+        GS_a(6,7,zeta);
+    }
+    
 
     //2 基2 128
     zeta = zetas_inv_n1277[256 + group_num * 2];
@@ -438,15 +544,31 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     GS_a(1,3,zeta);
 
     zeta = zetas_inv_n1277[256 + group_num * 2 + 1];
-    GS_a(4,6,zeta);
-    GS_a(5,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(4,6);
+        special_GS_a(5,7);
+    }
+    else{
+        GS_a(4,6,zeta);
+        GS_a(5,7,zeta);
+    }
+    
 
     //3 基2 64
     zeta = zetas_inv_n1277[384 + group_num];
-    GS_a(0,4,zeta);
-    GS_a(1,5,zeta);
-    GS_a(2,6,zeta);
-    GS_a(3,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(0,4);
+        special_GS_a(1,5);
+        special_GS_a(2,6);
+        special_GS_a(3,7);
+    }
+    else{
+        GS_a(0,4,zeta);
+        GS_a(1,5,zeta);
+        GS_a(2,6,zeta);
+        GS_a(3,7,zeta);
+    }
+    
 
     nttc.coeffs[start + group_idx] = a[0];
     nttc.coeffs[start + group_idx + 5] = a[1];
@@ -458,6 +580,8 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     nttc.coeffs[start + group_idx + 5 * 7] = a[7];
 
     __syncthreads();
+
+    
 
     group_num = threadIdx.x / 40;
     group_idx = threadIdx.x % 40;
@@ -471,6 +595,11 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     a[5] = nttc.coeffs[start + group_idx + 40 * 5];
     a[6] = nttc.coeffs[start + group_idx + 40 * 6];
     a[7] = nttc.coeffs[start + group_idx + 40 * 7];
+    
+#pragma unroll
+    for(int i=0;i<8;i++){
+        a[i] = pseudomersenne_reduce_single_n1277_cuda(a[i]);
+    }
 
     //4 基2 32
     zeta = zetas_inv_n1277[448 + group_num * 4];
@@ -483,13 +612,14 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     GS_a(4,5,zeta);
 
     zeta = zetas_inv_n1277[448 + group_num * 4 + 3];
-    GS_a(6,7,zeta);
-
-#pragma unroll
-    for(int i=0;i<8;i++){
-        pseudomersenne_reduce_single_n1277_cuda(a[i]);
-        pseudomersenne_reduce_single_n1277_cuda(b[i]);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(6,7);
     }
+    else{
+        GS_a(6,7,zeta);
+    }
+    
+
     
     //5 基2 16
     zeta = zetas_inv_n1277[480 + group_num * 2];
@@ -497,15 +627,29 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     GS_a(1,3,zeta);
 
     zeta = zetas_inv_n1277[480 + group_num * 2 + 1];
-    GS_a(4,6,zeta);
-    GS_a(5,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(4,6);
+        special_GS_a(5,7);
+    }
+    else{
+        GS_a(4,6,zeta);
+        GS_a(5,7,zeta);
+    }
 
     //6 基2 8
     zeta = zetas_inv_n1277[496 + group_num];
-    GS_a(0,4,zeta);
-    GS_a(1,5,zeta);
-    GS_a(2,6,zeta);
-    GS_a(3,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(0,4);
+        special_GS_a(1,5);
+        special_GS_a(2,6);
+        special_GS_a(3,7);
+    }
+    else{
+        GS_a(0,4,zeta);
+        GS_a(1,5,zeta);
+        GS_a(2,6,zeta);
+        GS_a(3,7,zeta);
+    }
 
     nttc.coeffs[start + group_idx] = a[0];
     nttc.coeffs[start + group_idx + 40] = a[1];
@@ -539,7 +683,12 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     GS_a(4,5,zeta);
 
     zeta = zetas_inv_n1277[504 + 3];
-    GS_a(6,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(6,7);
+    }
+    else{
+        GS_a(6,7,zeta);
+    }
 
     //8 基2 2
     zeta = zetas_inv_n1277[508];
@@ -547,8 +696,14 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
     GS_a(1,3,zeta);
 
     zeta = zetas_inv_n1277[508 + 1];
-    GS_a(4,6,zeta);
-    GS_a(5,7,zeta);
+    if(zeta == NUMBER_CSNNH){
+        special_GS_a(4,6);
+        special_GS_a(5,7);
+    }
+    else{
+        GS_a(4,6,zeta);
+        GS_a(5,7,zeta);
+    }
 
     //9 基2 1
     //zeta = zetas_inv_n1277[510];
@@ -568,6 +723,13 @@ __global__ void poly_mul_1277_batch_q1(poly * array_c,poly * array_a,poly * arra
 
     __syncthreads();
     
+    // if(threadIdx.x ==0){
+    //     printf("look nttc\n");
+    //     for(int i=0;i<N_N1277;i++){
+    //         printf("%d,",nttc.coeffs[i]);
+    //     }
+    //     printf("\n");
+    // }
     //1 - 320
     array_c[blockIdx.x].coeffs[threadIdx.x + 1] = fq_freeze(montgomery_reduce_n1277_cuda((int64_t)FACTOR_DLXHNDNSHX * (nttc.coeffs[threadIdx.x + 1] + nttc.coeffs[threadIdx.x + 1 + FPTRU_N - 1] + nttc.coeffs[threadIdx.x + 1 + FPTRU_N])));
     

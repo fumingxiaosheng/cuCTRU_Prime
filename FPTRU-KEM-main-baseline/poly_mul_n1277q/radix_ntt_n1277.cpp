@@ -169,6 +169,7 @@ void ntt_small_n1277(int32_t a[N_N1277])
         }
     }
 
+
     k = 2;
 
     len = N_N1277 / 4;
@@ -188,7 +189,7 @@ void ntt_small_n1277(int32_t a[N_N1277])
         a[j] = (a[j] - t);
     }
     k += 2;
-
+        
     for (len = N_N1277 / 8; len >= 5; len >>= 1)
     {
         for (start = 0; start < N_N1277; start = j + len)
@@ -256,6 +257,14 @@ void invntt_toNUMBER_CSNLKMH(int32_t a[N_N1277])
                 }
             }
         }
+        // if(len == (5 << 5)){
+        //     printf("%d\n",k);
+        //     printf("look nttc sb\n");
+        //     for(int i=0;i<N_N1277;i++){
+        //         printf("%d,",a[i]);
+        //     }
+        //     printf("\n");
+        // }
     }
 
     len = N_N1277 / 2;
@@ -348,9 +357,34 @@ void poly_radix_ntt_n1277_q1(poly *c, const poly *a, const poly *b)
     poly_extend_n1277(&nttb, b);
 
     poly_ntt_big_n1277(&ntta);
+    // printf("look ntta\n");
+    // for(int i=0;i<N_N1277;i++){
+    //     printf("%d,",ntta.coeffs[i]);
+    // }
+    // printf("\n");
     poly_ntt_small_n1277(&nttb);
+
+    // printf("look nttb\n");
+    // for(int i=0;i<N_N1277;i++){
+    //     printf("%d,",nttb.coeffs[i]);
+    // }
+    // printf("\n");
+
     poly_basemul_n1277(&nttc, &ntta, &nttb);
+
+    // printf("look nttc\n");
+    // for(int i=0;i<N_N1277;i++){
+    //     printf("%d,",nttc.coeffs[i]);
+    // }
+    // printf("\n");
+
     poly_invntt_n1277(&nttc);
+    
+    printf("look nttc\n");
+    for(int i=0;i<N_N1277;i++){
+        printf("%d,",nttc.coeffs[i]);
+    }
+    printf("\n");
 
     poly_extract_n1277_q1(c, &nttc);
 }
