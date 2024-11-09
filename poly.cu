@@ -318,7 +318,8 @@ void poly_inverse_batch_0_v2(poly * array_finv,poly * array_f,cudaStream_t strea
 
     //BEFORE_SPEED
     //printf("poly_inverse_once\n");
-    poly_inverse_once<<<1,FPTRU_N + 1,0,stream>>>(fmul_inv,fmul);//正确性得以验证
+    //poly_inverse_once<<<1,FPTRU_N + 1,0,stream>>>(fmul_inv,fmul);//正确性得以验证
+    poly_inv<<<1,FPTRU_N ,0,stream>>>(fmul_inv,fmul);
     //AFTER_SPEED("poly_inverse_once v2")
 
     /*HANDLE_ERROR(cudaMemcpyAsync(fmul_h, fmul_inv, sizeof(poly) , cudaMemcpyDeviceToHost, stream));

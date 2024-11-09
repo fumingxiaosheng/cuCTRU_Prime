@@ -185,6 +185,7 @@ public:
 
     inline void start() const {
         cudaEventRecord(start_event_);
+
     }
 
     inline void stop() {
@@ -262,5 +263,35 @@ std::ostream &operator<<(std::ostream &os, const std::vector<S> &vector) {
     }
     return os;
 }
+
+class LazyCUDATimer {
+public:
+    void start() {
+        if (!initialized_) {
+            initialize();
+        }
+        timer_->start();
+    }
+
+    void stop() {
+        if (timer_) {
+            timer_->stop();
+        }
+    }
+
+    LazyCUDATimer(std::string func_name){
+        func_name_ = std::move(func_name);
+    }
+
+private:
+    void initialize() {
+        timer_ = std::make_unique<CUDATimer>(func_name_);
+        initialized_ = true;
+    }
+
+    bool initialized_ = false;
+    std::unique_ptr<CUDATimer> timer_;
+    std::string func_name_;
+};
 
 #endif

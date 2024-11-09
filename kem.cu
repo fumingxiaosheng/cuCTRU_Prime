@@ -2617,7 +2617,12 @@ double crypto_kem_decaps_v3(unsigned char *k, const unsigned char *ct, const uns
 
 #include <thread>
 using namespace std;
-//#define why1277
+//#define why12771
+
+LazyCUDATimer keygenNTT("keygen NTT");
+LazyCUDATimer encapsNTT("encaps NTT");
+LazyCUDATimer decapsNTT("decaps NTT");
+
 void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t stream,unsigned char * coins_h_0,unsigned char * coins_d_0,poly *finv_0,poly *h_0,poly *f_0,poly * g_0, unsigned char * d_pk,unsigned char * sk_d,int batch_size){
     
 // #ifdef allzero
@@ -2701,6 +2706,7 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
 
 #endif
 
+    //keygenNTT.start();
 #if (FPTRU_N == 653)
     poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(h_0,finv_0,g_0);//正确性已验证 //TODO:zhc一定要改回来
 #elif (FPTRU_N == 761)
@@ -2708,6 +2714,7 @@ void crypto_keygen(unsigned char *array_pk,unsigned char *array_sk,cudaStream_t 
 #elif (FPTRU_N == 1277)
     poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(h_0,finv_0,g_0);
 #endif
+    //keygenNTT.stop();
 
 #ifdef why1277
 
@@ -2877,15 +2884,16 @@ double fptru_keygen(unsigned char *array_pk,unsigned char *array_sk){
 
     for(int i=0;i<BATCH_SIZE;i++){
         randombytes(&coins_h_0[i*FPTRU_COIN_BYTES], FPTRU_SEEDBYTES);
-        //printf("random %d\n",i);
+        // printf("random %d\n",i);
         // for(int j=0;j<FPTRU_SEEDBYTES;j++){
-        //     //printf("%d,",coins_h_0[i*FPTRU_COIN_BYTES + j]);
-        //     coins_h_0[i*FPTRU_COIN_BYTES + j] = seed[j];
+        //     printf("%d,",coins_h_0[i*FPTRU_COIN_BYTES + j]);
+        //     //coins_h_0[i*FPTRU_COIN_BYTES + j] = seed[j];
         // }
         // printf("\n");
         //randombytes(array_sk + i * FPTRU_KEM_SECRETKEYBYTES + FPTRU_PKE_SECRETKEYBYTES + FPTRU_PKE_PUBLICKEYBYTES, FPTRU_SEEDBYTES);
     }
 
+#ifdef onlybatch
     ChronoTimer timer_keypair_batch("keygen batch");
     cudaStream_t stream0;
     cudaStreamCreate(&stream0);
@@ -2894,56 +2902,62 @@ double fptru_keygen(unsigned char *array_pk,unsigned char *array_sk){
         crypto_keygen(array_pk,array_sk,stream0,coins_h_0,coins_d_0,finv_0,h_0,f_0,g_0, d_pk,d_sk,BATCH_SIZE);
         timer_keypair_batch.stop();
     }
+#endif
 
-
-    // ChronoTimer timer_keypair_stream("keygen stream");
-    // std::vector<cudaStream_t> streams(NUM_THREAD);
-    // for (auto &stream: streams) {
-    //     HANDLE_ERROR(cudaStreamCreate(&stream));
-    // }
-    // int batch_size = BATCH_SIZE/NUM_THREAD;
-    // for(int i=0;i<HXWTEST;i++){
-    //     timer_keypair_stream.start();
-    //     for(int j=0;j<NUM_THREAD;j++){
-    //         crypto_keygen(array_pk + batch_size * FPTRU_KEM_PUBLICKEYBYTES * j,
-    //         array_sk + batch_size * FPTRU_KEM_SECRETKEYBYTES * j,
-    //         streams[j],
-    //         coins_h_0 + batch_size * FPTRU_COIN_BYTES * j, 
-    //         coins_d_0 + batch_size * FPTRU_COIN_BYTES * j, 
-    //         finv_0 + batch_size * j,h_0 + batch_size * j ,f_0 + batch_size * j , g_0 + batch_size * j, d_pk +  batch_size *FPTRU_KEM_PUBLICKEYBYTES * j,d_sk  + batch_size * FPTRU_KEM_SECRETKEYBYTES * j,batch_size);
-    //     }
-    //     cudaDeviceSynchronize();
-    //     timer_keypair_stream.stop();
-    // }
-    // ChronoTimer timer_keypair_stream_threads("keygen stream threads");
-    // std::thread threads[NUM_THREAD];
-    // std::vector<KeygenArgs> keygen_args(NUM_THREAD);
-    // for (int j = 0; j < NUM_THREAD; j++) {
-    //     keygen_args[j].array_pk = array_pk + batch_size * FPTRU_KEM_PUBLICKEYBYTES * j;
-    //     keygen_args[j].array_sk = array_sk + batch_size * FPTRU_KEM_SECRETKEYBYTES * j;
-    //     keygen_args[j].stream = streams[j];
-    //     keygen_args[j].coins_h_0 = coins_h_0 + batch_size * FPTRU_COIN_BYTES * j;
-    //     keygen_args[j].coins_d_0 = coins_d_0 + batch_size * FPTRU_COIN_BYTES * j;
-    //     keygen_args[j].finv_0 = finv_0 + batch_size * j;
-    //     keygen_args[j].h_0 = h_0 + batch_size * j;
-    //     keygen_args[j].f_0 = f_0 + batch_size * j;
-    //     keygen_args[j].g_0 = g_0 + batch_size * j;
-    //     keygen_args[j].d_pk = d_pk +  batch_size *FPTRU_KEM_PUBLICKEYBYTES * j;
-    //     keygen_args[j].sk_d = d_sk  + batch_size * FPTRU_KEM_SECRETKEYBYTES * j;
-    //     keygen_args[j].batch_size = batch_size;
-    // }
-
-    // for(int j=0;j<HXWTEST;j++){
-    //     timer_keypair_stream_threads.start();
-    //     for (int i = 0; i < NUM_THREAD; i++) {
-    //         threads[i] = std::thread(thread_function_keygen, &keygen_args[i]);
-    //     }
-    //     for (int i = 0; i < NUM_THREAD; i++) {
-    //         threads[i].join();
-    //     }
-    //     timer_keypair_stream_threads.stop();
-    // }
     
+    std::vector<cudaStream_t> streams(NUM_THREAD);
+    for (auto &stream: streams) {
+        HANDLE_ERROR(cudaStreamCreate(&stream));
+    }
+    int batch_size = BATCH_SIZE/NUM_THREAD;
+
+#ifdef onlystream
+    ChronoTimer timer_keypair_stream("keygen stream");
+    for(int i=0;i<HXWTEST;i++){
+        timer_keypair_stream.start();
+        for(int j=0;j<NUM_THREAD;j++){
+            crypto_keygen(array_pk + batch_size * FPTRU_KEM_PUBLICKEYBYTES * j,
+            array_sk + batch_size * FPTRU_KEM_SECRETKEYBYTES * j,
+            streams[j],
+            coins_h_0 + batch_size * FPTRU_COIN_BYTES * j, 
+            coins_d_0 + batch_size * FPTRU_COIN_BYTES * j, 
+            finv_0 + batch_size * j,h_0 + batch_size * j ,f_0 + batch_size * j , g_0 + batch_size * j, d_pk +  batch_size *FPTRU_KEM_PUBLICKEYBYTES * j,d_sk  + batch_size * FPTRU_KEM_SECRETKEYBYTES * j,batch_size);
+        }
+        cudaDeviceSynchronize();
+        timer_keypair_stream.stop();
+    }
+#endif
+
+#ifdef stream_threads
+    ChronoTimer timer_keypair_stream_threads("keygen stream threads");
+    std::thread threads[NUM_THREAD];
+    std::vector<KeygenArgs> keygen_args(NUM_THREAD);
+    for (int j = 0; j < NUM_THREAD; j++) {
+        keygen_args[j].array_pk = array_pk + batch_size * FPTRU_KEM_PUBLICKEYBYTES * j;
+        keygen_args[j].array_sk = array_sk + batch_size * FPTRU_KEM_SECRETKEYBYTES * j;
+        keygen_args[j].stream = streams[j];
+        keygen_args[j].coins_h_0 = coins_h_0 + batch_size * FPTRU_COIN_BYTES * j;
+        keygen_args[j].coins_d_0 = coins_d_0 + batch_size * FPTRU_COIN_BYTES * j;
+        keygen_args[j].finv_0 = finv_0 + batch_size * j;
+        keygen_args[j].h_0 = h_0 + batch_size * j;
+        keygen_args[j].f_0 = f_0 + batch_size * j;
+        keygen_args[j].g_0 = g_0 + batch_size * j;
+        keygen_args[j].d_pk = d_pk +  batch_size *FPTRU_KEM_PUBLICKEYBYTES * j;
+        keygen_args[j].sk_d = d_sk  + batch_size * FPTRU_KEM_SECRETKEYBYTES * j;
+        keygen_args[j].batch_size = batch_size;
+    }
+
+    for(int j=0;j<HXWTEST;j++){
+        timer_keypair_stream_threads.start();
+        for (int i = 0; i < NUM_THREAD; i++) {
+            threads[i] = std::thread(thread_function_keygen, &keygen_args[i]);
+        }
+        for (int i = 0; i < NUM_THREAD; i++) {
+            threads[i].join();
+        }
+        timer_keypair_stream_threads.stop();
+    }
+#endif
 
     HANDLE_ERROR(cudaFree(coins_d_0));
 
@@ -3020,7 +3034,7 @@ void crypto_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk,cudaSt
     
     atpqc_cuda::fips202_ws::global::shake<256><<<batch_size, 32, 0, stream>>>(m_d + FPTRU_PREFIXHASHBYTES, FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES, FPTRU_MSGBYTES, buf_d, FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2, 32, batch_size);
 
-#ifdef why1277
+#ifdef why12771
     printf("in encaps look m\n");
     HANDLE_ERROR(cudaMemcpyAsync(m_h, m_d, (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) * batch_size, cudaMemcpyDeviceToHost, stream));
     cudaDeviceSynchronize();
@@ -3045,7 +3059,7 @@ void crypto_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk,cudaSt
     poly_sample_and_double_v2<<<batch_size,FPTRU_N / 8 + 1, 0, stream>>>(r_d,buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2));
 #endif
     
-    
+    //encapsNTT.start();
 #if (FPTRU_N == 653)
     poly_mul_653_batch_q1_v3<<<batch_size,168,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
 #elif (FPTRU_N == 761)
@@ -3053,6 +3067,7 @@ void crypto_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk,cudaSt
 #elif (FPTRU_N == 1277)
     poly_mul_1277_batch_q1<<<batch_size,320,0,stream>>>(sigma_h_d,sigma_h_d,r_d);
 #endif
+    //encapsNTT.stop();
     
     // poly_poly_sample_and_double_mul_761_q1<<<batch_size,192,0,stream>>>(buf_d + FPTRU_SHAREDKEYBYTES,0,0,(FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),sigma_h_d,sigma_h_d);
 
@@ -3135,6 +3150,7 @@ void fptru_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk){
         // }
     }
 
+#ifdef onlybatch
     ChronoTimer timer_encaps_batch("encaps batch");
     cudaStream_t stream0;
     cudaStreamCreate(&stream0);
@@ -3144,53 +3160,59 @@ void fptru_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk){
         cudaDeviceSynchronize();
         timer_encaps_batch.stop();
     }
+#endif
 
-    // ChronoTimer timer_encaps_stream("encaps stream");
-    // std::vector<cudaStream_t> streams(NUM_THREAD);
-    // for (auto &stream: streams) {
-    //     HANDLE_ERROR(cudaStreamCreate(&stream));
-    // }
-    // int batch_size = BATCH_SIZE/NUM_THREAD;
-    // for(int i=0;i<HXWTEST;i++){
-    //     timer_encaps_stream.start();
-    //     for(int j=0;j<NUM_THREAD;j++){
-    //         crypto_encaps(ct + batch_size * j * FPTRU_KEM_CIPHERTEXTBYTES, k + batch_size * j * FPTRU_SHAREDKEYBYTES,pk + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES,streams[j],buf_h + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),m_h + batch_size * j * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES),buf_d + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),m_d + j *batch_size * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) ,sigma_h_d + j * batch_size,r_d + j * batch_size ,ct_d + j * batch_size * FPTRU_PKE_CIPHERTEXTBYTES,k_d + j * batch_size * FPTRU_SHAREDKEYBYTES,pk_d + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES,batch_size);
-    //     }
-    //     cudaDeviceSynchronize();
-    //     timer_encaps_stream.stop();
-    // }
-
-    // ChronoTimer timer_encaps_stream_threads("encaps stream threads");
-    // std::thread threads[NUM_THREAD];
-    // std::vector<EncapsArgs> encaps_args(NUM_THREAD);
-    // for (int j = 0; j < NUM_THREAD; j++) {
-    //     encaps_args[j].ct = ct + batch_size * j * FPTRU_KEM_CIPHERTEXTBYTES;
-    //     encaps_args[j].k = k + batch_size * j * FPTRU_SHAREDKEYBYTES;
-    //     encaps_args[j].pk = pk + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES;
-    //     encaps_args[j].stream = streams[j];
-    //     encaps_args[j].buf_h = buf_h + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2);
-    //     encaps_args[j].m_h = m_h + batch_size * j * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES);
-    //     encaps_args[j].buf_d = buf_d + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2);
-    //     encaps_args[j].m_d = m_d + j *batch_size * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES);
-    //     encaps_args[j].sigma_h_d = sigma_h_d + j * batch_size;
-    //     encaps_args[j].r_d = r_d + j * batch_size ;
-    //     encaps_args[j].ct_d = ct_d + j * batch_size * FPTRU_PKE_CIPHERTEXTBYTES;
-    //     encaps_args[j].k_d = k_d + j * batch_size * FPTRU_SHAREDKEYBYTES;
-    //     encaps_args[j].pk_d = pk_d + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES;
-    //     encaps_args[j].batch_size = batch_size;
-    // }
     
-    // for(int j=0;j<HXWTEST;j++){
-    //     timer_encaps_stream_threads.start();
-    //     for (int i = 0; i < NUM_THREAD; i++) {
-    //         threads[i] = std::thread(thread_function_encaps, &encaps_args[i]);
-    //     }
-    //     for (int i = 0; i < NUM_THREAD; i++) {
-    //         threads[i].join();
-    //     }
-    //     timer_encaps_stream_threads.stop();
-    // }
+    std::vector<cudaStream_t> streams(NUM_THREAD);
+    for (auto &stream: streams) {
+        HANDLE_ERROR(cudaStreamCreate(&stream));
+    }
+    int batch_size = BATCH_SIZE/NUM_THREAD;
 
+#ifdef onlystream
+    ChronoTimer timer_encaps_stream("encaps stream");
+    for(int i=0;i<HXWTEST;i++){
+        timer_encaps_stream.start();
+        for(int j=0;j<NUM_THREAD;j++){
+            crypto_encaps(ct + batch_size * j * FPTRU_KEM_CIPHERTEXTBYTES, k + batch_size * j * FPTRU_SHAREDKEYBYTES,pk + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES,streams[j],buf_h + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),m_h + batch_size * j * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES),buf_d + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2),m_d + j *batch_size * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) ,sigma_h_d + j * batch_size,r_d + j * batch_size ,ct_d + j * batch_size * FPTRU_PKE_CIPHERTEXTBYTES,k_d + j * batch_size * FPTRU_SHAREDKEYBYTES,pk_d + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES,batch_size);
+        }
+        cudaDeviceSynchronize();
+        timer_encaps_stream.stop();
+    }
+#endif
+
+#ifdef stream_threads
+    ChronoTimer timer_encaps_stream_threads("encaps stream threads");
+    std::thread threads[NUM_THREAD];
+    std::vector<EncapsArgs> encaps_args(NUM_THREAD);
+    for (int j = 0; j < NUM_THREAD; j++) {
+        encaps_args[j].ct = ct + batch_size * j * FPTRU_KEM_CIPHERTEXTBYTES;
+        encaps_args[j].k = k + batch_size * j * FPTRU_SHAREDKEYBYTES;
+        encaps_args[j].pk = pk + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES;
+        encaps_args[j].stream = streams[j];
+        encaps_args[j].buf_h = buf_h + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2);
+        encaps_args[j].m_h = m_h + batch_size * j * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES);
+        encaps_args[j].buf_d = buf_d + batch_size * j * (FPTRU_SHAREDKEYBYTES + FPTRU_COIN_BYTES / 2);
+        encaps_args[j].m_d = m_d + j *batch_size * (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES);
+        encaps_args[j].sigma_h_d = sigma_h_d + j * batch_size;
+        encaps_args[j].r_d = r_d + j * batch_size ;
+        encaps_args[j].ct_d = ct_d + j * batch_size * FPTRU_PKE_CIPHERTEXTBYTES;
+        encaps_args[j].k_d = k_d + j * batch_size * FPTRU_SHAREDKEYBYTES;
+        encaps_args[j].pk_d = pk_d + batch_size * j * FPTRU_KEM_PUBLICKEYBYTES;
+        encaps_args[j].batch_size = batch_size;
+    }
+    
+    for(int j=0;j<HXWTEST;j++){
+        timer_encaps_stream_threads.start();
+        for (int i = 0; i < NUM_THREAD; i++) {
+            threads[i] = std::thread(thread_function_encaps, &encaps_args[i]);
+        }
+        for (int i = 0; i < NUM_THREAD; i++) {
+            threads[i].join();
+        }
+        timer_encaps_stream_threads.stop();
+    }
+#endif
 
     HANDLE_ERROR(cudaFree(r_d));
     HANDLE_ERROR(cudaFree(m_d));
@@ -3207,7 +3229,7 @@ void fptru_encaps(unsigned char *ct, unsigned char *k, unsigned char *pk){
 
 
 
-double crypto_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,unsigned char * bytes, poly * polys, poly * polys_d,cudaStream_t stream,unsigned char * bytes_d,unsigned char * buf_d,poly * r_sigma_d,unsigned char * ct2_d,unsigned char * ct2_h,unsigned char * buf2_d,unsigned char * buf2_h,unsigned char * buf_h,int *res,unsigned char * sk_d,int batch_size){
+double crypto_decaps(unsigned char *k, const unsigned char *ct,const unsigned char *sk,unsigned char * bytes, poly * polys, poly * polys_d,cudaStream_t stream,unsigned char * bytes_d,unsigned char * buf_d,poly * r_sigma_d,unsigned char * ct2_d,unsigned char * ct2_h,unsigned char * buf2_d,unsigned char * buf2_h,unsigned char * buf_h,int *res,unsigned char * sk_d,int batch_size){
     
     // ChronoTimer bb("decaps before");
     // bb.start();
@@ -3270,7 +3292,7 @@ double crypto_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,unsi
 #endif
     HANDLE_ERROR(cudaMemcpyAsync(bytes_d, bytes, batch_size * ( (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) + (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) ), cudaMemcpyHostToDevice, stream));
 
-
+    //decapsNTT.start();
 #if (FPTRU_N == 653)
     poly_mul_653_batch_q2<<<batch_size,168,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[batch_size]);
 #elif(FPTRU_N == 761)
@@ -3278,12 +3300,13 @@ double crypto_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,unsi
 #elif(FPTRU_N == 1277)
     poly_mul_1277_batch_q2<<<batch_size,320,0,stream>>>(&polys_d[0],&polys_d[0],&polys_d[batch_size]);
 #endif
+    //decapsNTT.stop();
 
 
 
     poly_decode_batch<<<batch_size,FPTRU_MSGBYTES,0,stream>>>(bytes_d + FPTRU_PREFIXHASHBYTES,&polys_d[0]);
 
-#ifdef why1277
+#ifdef why12771
     printf("in decaps look m\n");
     HANDLE_ERROR(cudaMemcpyAsync(bytes, bytes_d, batch_size * ( (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES)), cudaMemcpyDeviceToHost, stream));
     cudaDeviceSynchronize();
@@ -3389,7 +3412,7 @@ void thread_function_decaps(DecapsArgs *args) {
     crypto_decaps(args->k, args->ct, args->sk,args->bytes, args->polys, args->polys_d,args->stream,args->bytes_d,args->buf_d,args->r_sigma_d,args->ct2_d,args->ct2_h,args->buf2_d,args->buf2_h,args->buf_h,args->res,args->sk_d,args->batch_size);
 }
 
-void check(unsigned char *k1,unsigned char *k2,int label){
+void check(unsigned char *k1,const unsigned char *k2,int label){
     // for(int j=0;j<BATCH_SIZE;j++){
     //     for(int i=0;i<FPTRU_SHAREDKEYBYTES;i++){
     //         printf("%d,",k2[j * FPTRU_SHAREDKEYBYTES + i]);
@@ -3401,14 +3424,16 @@ void check(unsigned char *k1,unsigned char *k2,int label){
 
     for(int i=0;i<FPTRU_SHAREDKEYBYTES * BATCH_SIZE;i++){
         if(k1[i]!=k2[i]){
-            printf("(%d,%d,%d),",i,k1[i],k2[i]);
-            tt = 1;
+            // printf("(%d,%d,%d),",i,k1[i],k2[i]);
+            // tt = 1;
+            printf("%d not the same\n",label);
+            return;
         }
     }
-    printf("\n\n");
+    if(tt) printf("\n\n");
 }
 
-void fptru_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,int *res,unsigned char *k1){
+void fptru_decaps(unsigned char *k, const unsigned char *ct, const unsigned char *sk,int *res,const unsigned char *k1){
     unsigned char * bytes;
 
     unsigned char * bytes_d;
@@ -3428,6 +3453,12 @@ void fptru_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,int *re
     unsigned char * ct2_h;
     unsigned char * sk_d;
 
+#ifdef onlybatch 
+    ChronoTimer timer_decaps_batch("decaps batch");
+    cudaStream_t stream0;
+    cudaStreamCreate(&stream0);
+    for(int i=0;i<HXWTEST;i++){
+        //
     HANDLE_ERROR(cudaHostAlloc((void**)&bytes, BATCH_SIZE * ( (FPTRU_PREFIXHASHBYTES + FPTRU_MSGBYTES) + (FPTRU_PKE_CIPHERTEXTBYTES + FPTRU_SEEDBYTES + FPTRU_PREFIXHASHBYTES) ), cudaHostAllocDefault));
 
     HANDLE_ERROR(cudaHostAlloc((void**)&polys, BATCH_SIZE * sizeof(poly) * 3, cudaHostAllocDefault));
@@ -3444,29 +3475,39 @@ void fptru_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,int *re
     HANDLE_ERROR(cudaMalloc((void**)&buf2_d,(FPTRU_SHAREDKEYBYTES * 2) * BATCH_SIZE));
     HANDLE_ERROR(cudaMalloc((void**)&sk_d,FPTRU_KEM_SECRETKEYBYTES * BATCH_SIZE));
 
-    ChronoTimer timer_decaps_batch("decaps batch");
-    cudaStream_t stream0;
-    cudaStreamCreate(&stream0);
-    printf("decaps batch\n");
-    for(int i=0;i<HXWTEST;i++){
+
         timer_decaps_batch.start();
         crypto_decaps(k,ct,sk,bytes,polys,polys_d,stream0,bytes_d,buf_d,r_sigma_d,ct2_d,ct2_h,buf2_d,buf2_h,buf_h,res,sk_d,BATCH_SIZE);
         cudaDeviceSynchronize();
         timer_decaps_batch.stop();
-        //check(k,k1,i);
-        // printf("解密结果为\n");
-        // for(int i=0;i<BATCH_SIZE;i++){
-        //     printf("%d,",res[i]);//值为0代表方案成功
-        // }
-        // printf("\n");
-    }
+        check(k,k1,i);
+    
+    HANDLE_ERROR(cudaFree(polys_d));
+    HANDLE_ERROR(cudaFree(r_sigma_d));
+    HANDLE_ERROR(cudaFree(ct2_d));
+    HANDLE_ERROR(cudaFree(bytes_d));
+    HANDLE_ERROR(cudaFree(buf_d));
+    HANDLE_ERROR(cudaFree(buf2_d));
+    HANDLE_ERROR(cudaFree(sk_d));
 
-    /*ChronoTimer timer_decaps_stream("decaps stream");
+    HANDLE_ERROR(cudaFreeHost(bytes));
+    HANDLE_ERROR(cudaFreeHost(polys));
+    HANDLE_ERROR(cudaFreeHost(ct2_h));
+    HANDLE_ERROR(cudaFreeHost(buf2_h));
+    HANDLE_ERROR(cudaFreeHost(buf_h));
+
+    }
+#endif
+
+    
     std::vector<cudaStream_t> streams(NUM_THREAD);
     for (auto &stream: streams) {
         HANDLE_ERROR(cudaStreamCreate(&stream));
     }
     int batch_size = BATCH_SIZE/NUM_THREAD;
+
+#ifdef onlystream
+    ChronoTimer timer_decaps_stream("decaps stream");
     printf("decaps stream\n");
     for(int i=0;i<HXWTEST;i++){
         timer_decaps_stream.start();
@@ -3488,11 +3529,13 @@ void fptru_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,int *re
         timer_decaps_stream.stop();
         check(k,k1,i);
     }
+#endif
 
+#ifdef stream_threads
     ChronoTimer timer_decaps_stream_threads("decaps stream threads");
     std::thread threads[NUM_THREAD];
-    std::vector<DecapsArgs> decaps_args(NUM_THREAD);
     printf("decaps stream threads\n");
+    std::vector<DecapsArgs> decaps_args(NUM_THREAD);
     for (int j = 0; j < NUM_THREAD; j++) {
         decaps_args[j].k = k + j * batch_size * FPTRU_SHAREDKEYBYTES;
         decaps_args[j].ct = ct + j * batch_size * FPTRU_KEM_CIPHERTEXTBYTES;
@@ -3524,19 +3567,8 @@ void fptru_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk,int *re
         }
         timer_decaps_stream_threads.stop();
         check(k,k1,j);
-    }*/
+    }
+#endif
 
-    HANDLE_ERROR(cudaFree(polys_d));
-    HANDLE_ERROR(cudaFree(r_sigma_d));
-    HANDLE_ERROR(cudaFree(ct2_d));
-    HANDLE_ERROR(cudaFree(bytes_d));
-    HANDLE_ERROR(cudaFree(buf_d));
-    HANDLE_ERROR(cudaFree(buf2_d));
-    HANDLE_ERROR(cudaFree(sk_d));
-
-    HANDLE_ERROR(cudaFreeHost(bytes));
-    HANDLE_ERROR(cudaFreeHost(polys));
-    HANDLE_ERROR(cudaFreeHost(ct2_h));
-    HANDLE_ERROR(cudaFreeHost(buf2_h));
-    HANDLE_ERROR(cudaFreeHost(buf_h));
+    
 }

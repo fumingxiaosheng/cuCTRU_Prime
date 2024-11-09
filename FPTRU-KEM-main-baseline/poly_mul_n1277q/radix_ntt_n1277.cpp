@@ -380,11 +380,11 @@ void poly_radix_ntt_n1277_q1(poly *c, const poly *a, const poly *b)
 
     poly_invntt_n1277(&nttc);
     
-    printf("look nttc\n");
-    for(int i=0;i<N_N1277;i++){
-        printf("%d,",nttc.coeffs[i]);
-    }
-    printf("\n");
+    // printf("look nttc\n");
+    // for(int i=0;i<N_N1277;i++){
+    //     printf("%d,",nttc.coeffs[i]);
+    // }
+    // printf("\n");
 
     poly_extract_n1277_q1(c, &nttc);
 }

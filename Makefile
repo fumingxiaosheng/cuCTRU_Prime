@@ -53,7 +53,7 @@ $(BLDDIR)/test653_v2: $(SOURCE)
 $(BLDDIR)/test653_v1: $(SOURCE)
 	$(NVCC) $(NVCCFLAGS) -DFPTRU_N=653 -DNEW=0 -g $^ -o $@ 
 
-$(BLDDIR)/test653: $(SOURCE)
+$(BLDDIR)/test653_v5: $(SOURCE)
 	$(NVCC) $(NVCCFLAGS) -DFPTRU_N=653 -DNEW=1 -g $^ -o $@ 
 
 $(BLDDIR)/test761: $(SOURCE_761)
@@ -75,7 +75,7 @@ clean761:
 	rm -r $(BLDDIR)/test761
 
 clean1277:
-	rm -r $(BLDDIR)/test1277
+	rm -r $(BLDDIR)/test1277_v2
 
 clean653:
 	rm -r $(BLDDIR)/test653_v2

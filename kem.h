@@ -28,5 +28,5 @@ double fptru_keygen(unsigned char *array_pk,unsigned char *array_sk);
 
 void fptru_encaps(unsigned char *ct, unsigned char *k,  unsigned char *pk);
 
-void fptru_decaps(unsigned char *k, unsigned char *ct, unsigned char *sk, int *res, unsigned char *k1);
+void fptru_decaps(unsigned char *k,const unsigned char *ct,const unsigned char *sk, int *res,const unsigned char *k1);
 #endif

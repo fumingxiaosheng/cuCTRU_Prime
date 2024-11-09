@@ -13,7 +13,7 @@
 #elif (FPTRU_N == 1277)
 #include "poly_mul_n1277q/radix_ntt_n1277.h"
 #endif
-
+ChronoTimer decapsNTT("decaps NTT");
 void poly_reduce(poly *a)
 {
   for (int i = 0; i < FPTRU_N; ++i)
@@ -118,8 +118,9 @@ void poly_decode(unsigned char *msg,
   poly mp;
   uint32_t tmp_mp[8];
 
+  decapsNTT.start();
   poly_mul_q2(&mp, c, f);
-
+  decapsNTT.stop();
   // printf("look mp\n");
   // for(int i=0;i<FPTRU_N;i++) printf("%d,",mp.coeffs[i]);
   // printf("done \n");

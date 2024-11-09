@@ -11,6 +11,10 @@
 #include "poly_mul_n1277q/radix_ntt_n1277.h"
 #endif
 
+ChronoTimer keygenNTT("keygen NTT");
+ChronoTimer encapsNTT("encaps NTT");
+
+
 void crypto_pke_keygen(unsigned char pk[FPTRU_PKE_PUBLICKEYBYTES],
                        unsigned char sk[FPTRU_PKE_SECRETKEYBYTES],
                        const unsigned char coins[FPTRU_COIN_BYTES])
@@ -25,44 +29,48 @@ void crypto_pke_keygen(unsigned char pk[FPTRU_PKE_PUBLICKEYBYTES],
 
   poly_inverse(&finv, &f);
   
-  printf("f\n");
-  for(int i=0;i<FPTRU_N;i++){
-    printf("%d,",f.coeffs[i]);
-  }
-  printf("\n");
+  // printf("f\n");
+  // for(int i=0;i<FPTRU_N;i++){
+  //   printf("%d,",f.coeffs[i]);
+  // }
+  // printf("\n");
 
-  printf("look finv\n");
-  for(int i=0;i<FPTRU_N;i++){
-    printf("%d,",finv.coeffs[i]);
-  }
-  printf("\n");
+  // printf("look finv\n");
+  // for(int i=0;i<FPTRU_N;i++){
+  //   printf("%d,",finv.coeffs[i]);
+  // }
+  // printf("\n");
+
+  keygenNTT.start();
   poly_mul_q1(&h, &finv, &g);
+  keygenNTT.stop();
 
-  printf("g\n");
-  for(int i=0;i<FPTRU_N;i++){
-    printf("%d,",g.coeffs[i]);
-  }
-  printf("\n");
 
-  printf("look h\n");
-  for(int i=0;i<FPTRU_N;i++){
-    printf("%d,",h.coeffs[i]);
-  }
-  printf("\n");
+  // printf("g\n");
+  // for(int i=0;i<FPTRU_N;i++){
+  //   printf("%d,",g.coeffs[i]);
+  // }
+  // printf("\n");
+
+  // printf("look h\n");
+  // for(int i=0;i<FPTRU_N;i++){
+  //   printf("%d,",h.coeffs[i]);
+  // }
+  // printf("\n");
   poly_fqcsubq(&h);
 
-  printf("look h\n");
-  for(int i=0;i<FPTRU_N;i++){
-    printf("%d,",h.coeffs[i]);
-  }
-  printf("\n");
+  // printf("look h\n");
+  // for(int i=0;i<FPTRU_N;i++){
+  //   printf("%d,",h.coeffs[i]);
+  // }
+  // printf("\n");
 
   pack_pk(pk, &h);
-  printf("look pk\n");
-  for(int i=0;i<FPTRU_KEM_PUBLICKEYBYTES;i++){
-      printf("%d,",pk[i]);
-  }
-  printf("\n\n");
+  // printf("look pk\n");
+  // for(int i=0;i<FPTRU_KEM_PUBLICKEYBYTES;i++){
+  //     printf("%d,",pk[i]);
+  // }
+  // printf("\n\n");
 
   pack_sk(sk, &f);
 }
@@ -78,7 +86,12 @@ void crypto_pke_enc(unsigned char ct[FPTRU_PKE_CIPHERTEXTBYTES],
   unpack_pk(&h, pk);
 
   poly_sample(&r, coins);
+
+
+  encapsNTT.start();
   poly_mul_q1(&sigma, &h, &r);
+  encapsNTT.stop();
+
 
   // printf("look sigma2\n");
   // for(int i=0;i<FPTRU_N;i++){
