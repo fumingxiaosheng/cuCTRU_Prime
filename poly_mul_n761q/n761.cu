@@ -609,6 +609,12 @@ __global__ void poly_mul_761_batch_q2(poly * array_c,poly * array_a,poly * array
     a[2] = array_a[blockIdx.x].coeffs[threadIdx.x + blockDim.x * 2];
 
     if(threadIdx.x + blockDim.x * 3 < FPTRU_N) a[3] = array_a[blockIdx.x].coeffs[threadIdx.x + blockDim.x * 3];
+    // else a[3] = 0;
+    // a[4] = 0;
+    // a[5] = 0;
+    // a[6] = 0;
+    // a[7] = 0;
+
 
 
     b[0] = array_b[blockIdx.x].coeffs[threadIdx.x];
@@ -616,6 +622,11 @@ __global__ void poly_mul_761_batch_q2(poly * array_c,poly * array_a,poly * array
     b[2] = array_b[blockIdx.x].coeffs[threadIdx.x + blockDim.x * 2];
 
     if(threadIdx.x + blockDim.x * 3 < FPTRU_N) b[3] = array_b[blockIdx.x].coeffs[threadIdx.x + blockDim.x * 3];
+    // else b[3] = 0;
+    // b[4] = 0;
+    // b[5] = 0;
+    // b[6] = 0;
+    // b[7] = 0;
 
 
     //1 基2
@@ -853,7 +864,21 @@ __global__ void poly_mul_761_batch_q2(poly * array_c,poly * array_a,poly * array
     nttb.coeffs[start + group_idx + 3 * 7] = b[7];
     
     __syncthreads();
-    
+    // printf("NTTA result\n");
+    // if(threadIdx.x == 0 && blockIdx.x == 0){
+        //printf("NTTA result\n");
+        //int i = 1 + 1;不行还是会出错 zhc4.txt
+        // for(int i=0;i<N_N761;i++){
+        //     printf("%d,",ntta.coeffs[i]);
+        // }
+        // printf("\n\n");
+        // printf("NTTB result\n");
+        // for(int i=0;i<N_N761;i++){
+        //     printf("%d,",nttb.coeffs[i]);
+        // }
+        // printf("\n\n");
+    //}
+    //__syncthreads();
     //512 个 basemul
 
     //0-191个

@@ -75,7 +75,7 @@ clean761:
 	rm -r $(BLDDIR)/test761
 
 clean1277:
-	rm -r $(BLDDIR)/test1277_v2
+	rm -r $(BLDDIR)/test1277
 
 clean653:
 	rm -r $(BLDDIR)/test653_v2

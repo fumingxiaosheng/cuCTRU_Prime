@@ -10,7 +10,7 @@
 #define USING_PK_ENCODE 1
 
 #ifndef BATCH_SIZE
-#define BATCH_SIZE 781
+#define BATCH_SIZE 400
 #endif
 
 #ifndef NUM_THREAD

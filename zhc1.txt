@@ -1,0 +1,13 @@
+keygen batch,10,11406.1,11422.9,264.368
+encaps batch,10,264.827,272.784,13.0125
+1 not the same
+2 not the same
+3 not the same
+4 not the same
+5 not the same
+6 not the same
+7 not the same
+8 not the same
+9 not the same
+指针值不改
+decaps batch,10,425.659,434.497,25.6282
