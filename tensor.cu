@@ -162,6 +162,12 @@ __global__ void init_matrix_b(poly * b,int8_t * B){
     B[bid * B_x * B_y +tid] = b[bid].coeffs[tid];
 }
 
+__global__ void init_matrix_b_16(poly * b,int8_t * B){
+    int bid=blockIdx.x;//对应着多项式的下标
+    int tid=threadIdx.x;
+    B[bid * B_x +tid] = b[bid].coeffs[tid];
+}
+
 
 /*2024-6-26:
 将结果的低高位组合得到相应的结果*/
@@ -179,6 +185,14 @@ __global__ void merge_hl(int32_t * r_h, int32_t * r_l , poly * p){
 /*2024-6-26:
 输入:多项式数组a、b、c，其中a对应着大系数多项式,b对应着小系数多项式
 输出:c=a*b*/
+
+LazyCUDATimer init_matrix_a_timer("init_matrix_a");
+LazyCUDATimer init_matrix_b_timer("init_matrix_b");
+LazyCUDATimer wmma_ker_padding1_timer("wmma_ker_padding1");
+LazyCUDATimer wmma_ker_padding2_timer("wmma_ker_padding2");
+LazyCUDATimer merge_hl_timer("merge_hl");
+
+
 void tensor_poly_mul(poly *c, poly *a,poly *b,cudaStream_t stream){
     int32_t *C_l,*C_h;
     int8_t *A_h,*A_l,*B;
@@ -191,7 +205,9 @@ void tensor_poly_mul(poly *c, poly *a,poly *b,cudaStream_t stream){
 
     HANDLE_ERROR(cudaMalloc((void**)&B, B_x * B_y * sizeof(int8_t) * BATCH_SIZE));
 
+    init_matrix_a_timer.start();
     init_matrix_a<<<FPTRU_N,FPTRU_N,0,stream>>>(a,A_h,A_l);
+    init_matrix_a_timer.stop();
 
     //init_matrix_a_v3<<<BATCH_SIZE,FPTRU_N,0,stream>>>(a,A_h,A_l);
 
@@ -220,8 +236,9 @@ void tensor_poly_mul(poly *c, poly *a,poly *b,cudaStream_t stream){
     }
 #endif
 
+    init_matrix_b_timer.start();
     init_matrix_b<<<BATCH_SIZE,653,0,stream>>>(b,B);
-
+    init_matrix_b_timer.stop();
 
 #ifdef lookb
     int8_t bb[B_x*B_y*BATCH_SIZE];
@@ -244,8 +261,13 @@ void tensor_poly_mul(poly *c, poly *a,poly *b,cudaStream_t stream){
     int blocks = 41 * (BATCH_SIZE / 8);
     int threads = 32 * 8;
 
+    wmma_ker_padding1_timer.start();
     wmma_ker_padding<<<blocks,threads,0,stream>>>(A_h,B,C_h);
+    wmma_ker_padding1_timer.stop();
+
+    wmma_ker_padding2_timer.start();
     wmma_ker_padding<<<blocks,threads,0,stream>>>(A_l,B,C_l);
+    wmma_ker_padding2_timer.stop();
 
 #ifdef looka
     int32_t c_l[A_x*B_y*BATCH_SIZE];
@@ -266,8 +288,9 @@ void tensor_poly_mul(poly *c, poly *a,poly *b,cudaStream_t stream){
     }
 #endif
 
-
+    merge_hl_timer.start();
     merge_hl<<<BATCH_SIZE,FPTRU_N,0,stream>>>(C_h,C_l,c);
+    merge_hl_timer.stop();
 
     HANDLE_ERROR(cudaFree(C_l));
     HANDLE_ERROR(cudaFree(C_h));
@@ -277,4 +300,257 @@ void tensor_poly_mul(poly *c, poly *a,poly *b,cudaStream_t stream){
 
 }
 
+__global__ void init_matrix_a_two(poly *a,int8_t * ma){
+    //ma中的每一个数据元素包含两个AX*AY的矩阵，分别对应着高位和低位
+    int bid=blockIdx.x;
+    int tid=threadIdx.x;
+    int8_t * ah,al;
+    for(int num=0;num<BATCH_SIZE;num++){
+        int16_t tmp = a[num].coeffs[postive_mod(bid - tid , N)];
+        if (bid != 0 && tid - bid >= 0){
+            tmp += a[num].coeffs[postive_mod(N - 1 - (tid -bid) , N)];
+        }
+        ma[2 * num * A_x * A_y + bid * A_y + tid] = tmp >> 7;//高位
+        ma[2 * num * A_x * A_y + (bid + A_x) * A_y + tid] = tmp & (0x7f);//低位
+    }
+}
 
+__global__ void init_matrix_a_two_16(poly *a,int8_t * ma){
+    //ma中的每一个数据元素包含两个AX*AY的矩阵，分别对应着高位和低位
+    int bid=blockIdx.x;
+    int tid=threadIdx.x;
+    int8_t * ah,al;
+    for(int num=0;num<1;num++){
+        int16_t tmp = a[num].coeffs[postive_mod(bid - tid , N)];
+        if (bid != 0 && tid - bid >= 0){
+            tmp += a[num].coeffs[postive_mod(N - 1 - (tid -bid) , N)];
+        }
+        ma[2 * num * A_x * A_y + bid * A_y + tid] = tmp >> 7;//高位
+        ma[2 * num * A_x * A_y + (bid + A_x) * A_y + tid] = tmp & (0x7f);//低位
+    }
+}
+
+
+__global__ void wmma_ker_padding_two_16(int8_t *array_a, int8_t *array_b, int32_t *array_c) {
+   // Declare the fragments
+   wmma::fragment<wmma::matrix_a, TC_X, TC_Y, TC_Z, int8_t, wmma::row_major> a_frag;
+   // wklee, Read a in row major and b in column major
+   wmma::fragment<wmma::matrix_b, TC_X, TC_Y, TC_Z, int8_t, wmma::col_major> b_frag;
+   wmma::fragment<wmma::accumulator, TC_X, TC_Y, TC_Z, int32_t> c_frag;
+
+   // Each warp compute 16 elements along index i
+   uint32_t tot_warpID = (blockIdx.x * blockDim.x + threadIdx.x) / 32;
+   //每一个是41个Warp
+   uint32_t warpgroup = tot_warpID / 41;
+   uint32_t warpID = tot_warpID - warpgroup * 41;
+
+   uint32_t ldA_offset, ldB_offset, row_idx, col_idx, st_offset;
+   row_idx = warpID%((B_y)/TC_Z)*TC_Z;
+   col_idx = warpID/((B_y)/TC_Z)*TC_X;//TODO:这里会不会有问题呢？
+   st_offset = col_idx + row_idx * A_x ; 
+   int8_t * a = &array_a[0];
+   int8_t * b = &array_b[B_x * B_y * (warpgroup/2)];
+   int32_t * c = &array_c[A_x * B_y * warpgroup];
+   
+   // Initialize the output to zero
+   wmma::fill_fragment(c_frag, 0);  
+   for (int i = 0; i < (A_y)/TC_Y; i ++)    
+    {
+     
+      ldA_offset = col_idx*(A_y) + i*TC_Y; //TODO:明天继续改下面的，注意范围的限制
+      ldB_offset = row_idx*(B_x) + i*TC_Y; 
+      wmma::load_matrix_sync(a_frag, a + ldA_offset , A_y);   
+      wmma::load_matrix_sync(b_frag, b + ldB_offset  , B_x);
+      wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
+    }    
+    wmma::store_matrix_sync(c + st_offset , c_frag, A_x, wmma::mem_col_major);    
+}
+
+
+__global__ void wmma_ker_padding_two(int8_t *array_a, int8_t *array_b, int32_t *array_c) {
+   // Declare the fragments
+   wmma::fragment<wmma::matrix_a, TC_X, TC_Y, TC_Z, int8_t, wmma::row_major> a_frag;
+   // wklee, Read a in row major and b in column major
+   wmma::fragment<wmma::matrix_b, TC_X, TC_Y, TC_Z, int8_t, wmma::col_major> b_frag;
+   wmma::fragment<wmma::accumulator, TC_X, TC_Y, TC_Z, int32_t> c_frag;
+
+   // Each warp compute 16 elements along index i
+   uint32_t tot_warpID = (blockIdx.x * blockDim.x + threadIdx.x) / 32;
+   //每一个是41个Warp
+   uint32_t warpgroup = tot_warpID / 41;
+   uint32_t warpID = tot_warpID - warpgroup * 41;
+
+   uint32_t ldA_offset, ldB_offset, row_idx, col_idx, st_offset;
+   row_idx = warpID%((B_y)/TC_Z)*TC_Z;
+   col_idx = warpID/((B_y)/TC_Z)*TC_X;//TODO:这里会不会有问题呢？
+   st_offset = col_idx + row_idx * A_x ; 
+   int8_t * a = &array_a[A_x * A_y * warpgroup];
+   int8_t * b = &array_b[B_x * B_y * (warpgroup/2)];
+   int32_t * c = &array_c[A_x * B_y * warpgroup];
+   
+   // Initialize the output to zero
+   wmma::fill_fragment(c_frag, 0);  
+   for (int i = 0; i < (A_y)/TC_Y; i ++)    
+    {
+     
+      ldA_offset = col_idx*(A_y) + i*TC_Y; //TODO:明天继续改下面的，注意范围的限制
+      ldB_offset = row_idx*(B_x) + i*TC_Y; 
+      wmma::load_matrix_sync(a_frag, a + ldA_offset , A_y);   
+      wmma::load_matrix_sync(b_frag, b + ldB_offset  , B_x);
+      wmma::mma_sync(c_frag, a_frag, b_frag, c_frag);
+    }    
+    wmma::store_matrix_sync(c + st_offset , c_frag, A_x, wmma::mem_col_major);    
+}
+
+__global__ void merge_hl_two(int32_t * r_h_l , poly * p){
+    int bid=blockIdx.x; //对应具体多项式
+    int tid=threadIdx.x;
+
+    int32_t res = (r_h_l[(2 * bid) * A_x * B_y + tid] << 7) + r_h_l[(2 * bid + 1)* A_x * B_y + tid]; //todo:改为64
+
+    //r[tid] = barrett_reduce_int32_t(res);
+    p[bid].coeffs[tid] = fq_freeze(res);
+}
+
+__global__ void merge_hl_two_16(int32_t * r_h_l , poly * p){
+    int bid=blockIdx.x; //对应具体多项式
+    int tid=threadIdx.x;
+
+    int32_t res = (r_h_l[(2 * bid) * A_x + tid] << 7) + r_h_l[(2 * bid + 1)* A_x + tid]; //todo:改为64
+
+    //r[tid] = barrett_reduce_int32_t(res);
+    p[bid].coeffs[tid] = fq_freeze(res);
+}
+//单公钥情况
+void tensor_poly_mul_v3(poly *c, poly *a,poly *b,cudaStream_t stream){
+    int32_t *C_h_l;
+    int8_t *A_h_l,*B;
+
+    HANDLE_ERROR(cudaMalloc((void**)&C_h_l,2 *  A_x * B_y * sizeof(int32_t) * (BATCH_SIZE / B_y)));
+
+    HANDLE_ERROR(cudaMalloc((void**)&A_h_l, 2 * A_x * A_y * sizeof(int8_t)));
+
+    HANDLE_ERROR(cudaMalloc((void**)&B, B_x * B_y * sizeof(int8_t) * (BATCH_SIZE / B_y)));//减少B的内存量
+
+    init_matrix_a_timer.start();
+    init_matrix_a_two_16<<<FPTRU_N,FPTRU_N,0,stream>>>(a,A_h_l);
+    init_matrix_a_timer.stop();
+
+
+    init_matrix_b_timer.start();
+    init_matrix_b_16<<<BATCH_SIZE,FPTRU_N,0,stream>>>(b,B);
+    init_matrix_b_timer.stop();
+
+    // int blocks = 41 * (BATCH_SIZE / 128); //单公钥情况
+    // int threads = 32 * 8;
+
+#define THREADS2 256
+    int blocks = 41 * 32 * (BATCH_SIZE / 16) / THREADS2;
+    int threads = THREADS2;
+
+    wmma_ker_padding1_timer.start();
+    wmma_ker_padding_two_16<<<blocks,threads,0,stream>>>(A_h_l,B,C_h_l);
+    wmma_ker_padding1_timer.stop();
+
+    merge_hl_timer.start();
+    merge_hl_two_16<<<BATCH_SIZE,FPTRU_N,0,stream>>>(C_h_l,c);
+    merge_hl_timer.stop();
+
+    HANDLE_ERROR(cudaFree(C_h_l));
+    HANDLE_ERROR(cudaFree(A_h_l));
+    HANDLE_ERROR(cudaFree(B));
+}
+
+
+void tensor_poly_mul_v2(poly *c, poly *a,poly *b,cudaStream_t stream){
+    int32_t *C_h_l;
+    int8_t *A_h_l,*B;
+
+    HANDLE_ERROR(cudaMalloc((void**)&C_h_l,2 *  A_x * B_y * sizeof(int32_t) * BATCH_SIZE));
+
+    HANDLE_ERROR(cudaMalloc((void**)&A_h_l, 2 * A_x * A_y * sizeof(int8_t) * BATCH_SIZE));
+
+    HANDLE_ERROR(cudaMalloc((void**)&B, B_x * B_y * sizeof(int8_t) * BATCH_SIZE));
+
+    init_matrix_a_timer.start();
+    init_matrix_a_two<<<FPTRU_N,FPTRU_N,0,stream>>>(a,A_h_l);
+    init_matrix_a_timer.stop();
+
+#ifdef lookc
+    int8_t h_al[A_x*A_y*BATCH_SIZE];
+    int8_t h_ah[A_x*A_y*BATCH_SIZE];
+    cudaMemcpy(h_al,A_l, A_x * A_y * sizeof(int8_t) * BATCH_SIZE,cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_ah,A_h, A_x * A_y * sizeof(int8_t) * BATCH_SIZE,cudaMemcpyDeviceToHost);
+
+    cudaDeviceSynchronize();
+    printf("looka\n");
+    for(int num=0;num < BATCH_SIZE;num++){
+        printf("num = %d\n",num);
+        for(int i=0;i<A_x;i++){
+        for(int j=0;j<A_y;j++){
+            printf("(%d,%d)",h_ah[num * A_x * A_y + i*A_y + j] + h_al[num * A_x * A_y + i*A_y + j]);
+        }
+        printf("\n\n");
+    }
+    }
+#endif
+
+    init_matrix_b_timer.start();
+    init_matrix_b<<<BATCH_SIZE,FPTRU_N,0,stream>>>(b,B);
+    init_matrix_b_timer.stop();
+
+#ifdef lookb
+    int8_t bb[B_x*B_y*BATCH_SIZE];
+    
+    cudaMemcpy(bb,B, B_x * B_y * sizeof(int8_t) * BATCH_SIZE,cudaMemcpyDeviceToHost);
+
+    cudaDeviceSynchronize();
+    printf("lookB\n");
+    for(int num=0;num < BATCH_SIZE;num++){
+        printf("num = %d\n",num);
+        for(int i=0;i<A_x;i++){
+        for(int j=0;j<B_y;j++){
+            printf("%d,",bb[num * B_x * B_y + j*B_x + i]);
+        }
+        printf("\n\n");
+    }
+    }
+#endif
+
+    // int blocks = 41 * (BATCH_SIZE / 8) * 2;
+    // int threads = 32 * 8;
+#define THREADS1 128
+    int blocks = 41 * 32 * 2 * BATCH_SIZE / THREADS1;
+    int threads = THREADS1;
+    wmma_ker_padding1_timer.start();
+    wmma_ker_padding_two<<<blocks,threads,0,stream>>>(A_h_l,B,C_h_l);
+    wmma_ker_padding1_timer.stop();
+
+
+#ifdef looka
+    int32_t c_l[A_x*B_y*BATCH_SIZE];
+    int32_t c_h[A_x*B_y*BATCH_SIZE];
+    cudaMemcpy(c_l,C_l, A_x * B_y * sizeof(int32_t) * BATCH_SIZE,cudaMemcpyDeviceToHost);
+    cudaMemcpy(c_h,C_h, A_x * B_y * sizeof(int32_t) * BATCH_SIZE,cudaMemcpyDeviceToHost);
+
+    cudaDeviceSynchronize();
+    printf("lookc\n");
+    for(int num=0;num < BATCH_SIZE;num++){
+        printf("num = %d\n",num);
+        for(int i=0;i<A_x;i++){
+        for(int j=0;j<B_y;j++){
+            printf("(%d,%d)",c_h[num * A_x * B_y + j*A_x + i] , c_l[num * A_x * B_y + j*A_x + i]);
+        }
+        printf("\n\n");
+    }
+    }
+#endif
+
+    merge_hl_timer.start();
+    merge_hl_two<<<BATCH_SIZE,FPTRU_N,0,stream>>>(C_h_l,c);
+    merge_hl_timer.stop();
+
+    HANDLE_ERROR(cudaFree(C_h_l));
+    HANDLE_ERROR(cudaFree(A_h_l));
+    HANDLE_ERROR(cudaFree(B));
+}
